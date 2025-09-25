@@ -1,32 +1,20 @@
 import React, { createContext, useContext, useReducer, type ReactNode } from 'react';
-import type { ApiConfig, DatabaseConfig, MappingConfig, TestResult } from '../types';
-
-// App State Interface
-interface AppState {
-  apiConfig: ApiConfig | null;
-  databaseConfig: DatabaseConfig | null;
-  mappingConfig: MappingConfig | null;
-  testResults: TestResult[];
-  isLoading: boolean;
-  error: string | null;
-}
-
-// Action Types
-type AppAction =
-  | { type: 'SET_API_CONFIG'; payload: ApiConfig }
-  | { type: 'SET_DATABASE_CONFIG'; payload: DatabaseConfig }
-  | { type: 'SET_MAPPING_CONFIG'; payload: MappingConfig }
-  | { type: 'ADD_TEST_RESULT'; payload: TestResult }
-  | { type: 'CLEAR_TEST_RESULTS' }
-  | { type: 'SET_LOADING'; payload: boolean }
-  | { type: 'SET_ERROR'; payload: string | null }
-  | { type: 'RESET_STATE' };
+import type { 
+  ApiConfig, 
+  DatabaseConfig, 
+  MappingConfig, 
+  TestResult, 
+  FieldMapping,
+  AppState,
+  AppAction
+} from '../types';
 
 // Initial State
 const initialState: AppState = {
   apiConfig: null,
   databaseConfig: null,
   mappingConfig: null,
+  fieldMappings: [],
   testResults: [],
   isLoading: false,
   error: null,
@@ -41,6 +29,8 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
       return { ...state, databaseConfig: action.payload, error: null };
     case 'SET_MAPPING_CONFIG':
       return { ...state, mappingConfig: action.payload, error: null };
+    case 'SET_FIELD_MAPPINGS':
+      return { ...state, fieldMappings: action.payload, error: null };
     case 'ADD_TEST_RESULT':
       return { ...state, testResults: [...state.testResults, action.payload] };
     case 'CLEAR_TEST_RESULTS':
@@ -64,6 +54,7 @@ interface AppContextType {
   setApiConfig: (config: ApiConfig) => void;
   setDatabaseConfig: (config: DatabaseConfig) => void;
   setMappingConfig: (config: MappingConfig) => void;
+  setFieldMappings: (mappings: FieldMapping[]) => void;
   addTestResult: (result: TestResult) => void;
   clearTestResults: () => void;
   setLoading: (loading: boolean) => void;
@@ -94,6 +85,10 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     dispatch({ type: 'SET_MAPPING_CONFIG', payload: config });
   };
 
+  const setFieldMappings = (mappings: FieldMapping[]) => {
+    dispatch({ type: 'SET_FIELD_MAPPINGS', payload: mappings });
+  };
+
   const addTestResult = (result: TestResult) => {
     dispatch({ type: 'ADD_TEST_RESULT', payload: result });
   };
@@ -120,6 +115,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     setApiConfig,
     setDatabaseConfig,
     setMappingConfig,
+    setFieldMappings,
     addTestResult,
     clearTestResults,
     setLoading,
