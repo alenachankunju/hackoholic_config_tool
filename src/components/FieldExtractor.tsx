@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   TextField,
@@ -34,20 +34,76 @@ import {
   type FieldExtractionResult 
 } from '../utils/fieldExtractor';
 import type { ApiField } from '../types';
+import FieldTreeView, { type FieldSelectionState } from './FieldTreeView';
 
 interface FieldExtractorProps {
   onFieldsExtracted?: (fields: ApiField[]) => void;
+  onFieldsSelected?: (selectedFields: FieldSelectionState) => void;
+  initialJsonData?: any; // Auto-populate with JSON data
+  autoExtract?: boolean; // Automatically extract fields on mount
 }
 
-const FieldExtractor: React.FC<FieldExtractorProps> = ({ onFieldsExtracted }) => {
+const FieldExtractor: React.FC<FieldExtractorProps> = ({ 
+  onFieldsExtracted, 
+  onFieldsSelected, 
+  initialJsonData, 
+  autoExtract = false 
+}) => {
   const [jsonInput, setJsonInput] = useState('');
   const [extractionResult, setExtractionResult] = useState<FieldExtractionResult | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
+  const [selectedFields, setSelectedFields] = useState<FieldSelectionState>({});
   const [options, setOptions] = useState<FieldExtractionOptions>({
     maxDepth: 10,
     includeNullValues: false,
     arrayIndexLimit: 5,
   });
+
+  // Auto-populate and extract when initialJsonData is provided
+  useEffect(() => {
+    if (initialJsonData && autoExtract) {
+      const jsonString = JSON.stringify(initialJsonData, null, 2);
+      setJsonInput(jsonString);
+      
+      // Automatically extract fields
+      extractFieldsFromData(initialJsonData);
+    }
+  }, [initialJsonData, autoExtract]);
+
+  // Extract fields from data (internal function)
+  const extractFieldsFromData = async (data: any) => {
+    setIsExtracting(true);
+    setExtractionResult(null);
+
+    try {
+      const result = extractFieldsFromJSON(data, options);
+      setExtractionResult(result);
+      
+      // Clear previous selections
+      setSelectedFields({});
+      
+      // Notify parent component
+      if (onFieldsExtracted && result.fields.length > 0) {
+        onFieldsExtracted(result.fields);
+      }
+      
+    } catch (error) {
+      setExtractionResult({
+        fields: [],
+        errors: [`Extraction Error: ${error}`],
+        warnings: [],
+        statistics: {
+          totalFields: 0,
+          maxDepth: 0,
+          arrayFields: 0,
+          objectFields: 0,
+          primitiveFields: 0,
+        },
+      });
+    } finally {
+      setIsExtracting(false);
+    }
+  };
 
   // Sample JSON data for testing
   const sampleJsonData = {
@@ -115,6 +171,9 @@ const FieldExtractor: React.FC<FieldExtractorProps> = ({ onFieldsExtracted }) =>
       
       setExtractionResult(result);
       
+      // Clear previous selections
+      setSelectedFields({});
+      
       // Notify parent component
       if (onFieldsExtracted && result.fields.length > 0) {
         onFieldsExtracted(result.fields);
@@ -138,41 +197,20 @@ const FieldExtractor: React.FC<FieldExtractorProps> = ({ onFieldsExtracted }) =>
     }
   };
 
-  // Render field tree recursively
-  const renderFieldTree = (fields: ApiField[], depth: number = 0): React.ReactNode => {
-    return fields.map((field, index) => (
-      <Box key={`${field.path}-${index}`} sx={{ ml: depth * 2 }}>
-        <Box sx={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: 1, 
-          py: 0.5,
-          borderLeft: depth > 0 ? '2px solid #e0e0e0' : 'none',
-          pl: depth > 0 ? 1 : 0
-        }}>
-          <Chip 
-            label={field.type} 
-            size="small" 
-            color={
-              field.type === 'object' ? 'primary' :
-              field.type === 'array' ? 'secondary' :
-              field.type === 'string' ? 'success' :
-              field.type === 'number' ? 'warning' :
-              field.type === 'boolean' ? 'info' : 'default'
-            }
-            sx={{ fontSize: '0.7rem', height: 20 }}
-          />
-          <Typography variant="body2" sx={{ fontSize: '0.8rem', fontWeight: 'bold' }}>
-            {field.name}
-          </Typography>
-          <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'text.secondary', ml: 'auto' }}>
-            {field.path}
-          </Typography>
-        </Box>
-        {field.nested && renderFieldTree(field.nested, depth + 1)}
-      </Box>
-    ));
+  // Handle field selection
+  const handleFieldToggle = (fieldPath: string, isSelected: boolean) => {
+    const newSelectedFields = {
+      ...selectedFields,
+      [fieldPath]: isSelected,
+    };
+    setSelectedFields(newSelectedFields);
+    
+    // Notify parent component about selection changes
+    if (onFieldsSelected) {
+      onFieldsSelected(newSelectedFields);
+    }
   };
+
 
   // Get type color for statistics
   const getTypeColor = (type: string): 'primary' | 'secondary' | 'success' | 'warning' | 'info' | 'default' => {
@@ -194,6 +232,14 @@ const FieldExtractor: React.FC<FieldExtractorProps> = ({ onFieldsExtracted }) =>
         <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 'bold' }}>
           JSON Field Extractor
         </Typography>
+        {initialJsonData && autoExtract && (
+          <Chip 
+            label="Auto-populated from API" 
+            size="small" 
+            color="success"
+            sx={{ fontSize: '0.7rem', height: 20 }}
+          />
+        )}
       </Box>
 
       {/* Input Section */}
@@ -370,27 +416,27 @@ const FieldExtractor: React.FC<FieldExtractorProps> = ({ onFieldsExtracted }) =>
             </Box>
           )}
 
-          {/* Field Tree */}
+          {/* Field Tree View */}
           {extractionResult.fields.length > 0 && (
             <Accordion defaultExpanded>
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <TreeIcon color="primary" />
                   <Typography variant="subtitle2" sx={{ fontSize: '0.9rem', fontWeight: 'bold' }}>
-                    Extracted Fields ({extractionResult.fields.length})
+                    Field Tree View ({flattenFields(extractionResult.fields).length} fields)
                   </Typography>
                 </Box>
               </AccordionSummary>
-              <AccordionDetails>
-                <Box sx={{ 
-                  maxHeight: 400, 
-                  overflow: 'auto',
-                  p: 1,
-                  backgroundColor: 'grey.50',
-                  borderRadius: 1
-                }}>
-                  {renderFieldTree(extractionResult.fields)}
-                </Box>
+              <AccordionDetails sx={{ p: 0 }}>
+                <FieldTreeView
+                  fields={extractionResult.fields}
+                  selectedFields={selectedFields}
+                  onFieldToggle={handleFieldToggle}
+                  searchPlaceholder="Search fields by name, type, or JSONPath..."
+                  showFieldCounts={true}
+                  maxHeight={400}
+                  enableSearch={true}
+                />
               </AccordionDetails>
             </Accordion>
           )}

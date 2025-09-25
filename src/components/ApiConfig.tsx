@@ -6,13 +6,16 @@ import {
   Alert,
   Typography,
   Divider,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
+  Card,
+  CardContent,
+  CircularProgress,
+  Chip,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import {
-  ExpandMore as ExpandMoreIcon,
-  Code as CodeIcon,
+  Send as SendIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { useForm } from 'react-hook-form';
 import { useAppContext } from '../contexts/AppContext';
@@ -20,6 +23,7 @@ import type { ApiConfig, AuthConfig, ApiField } from '../types';
 import ApiUrlInput from './ApiUrlInput';
 import AuthConfigComponent from './AuthConfig';
 import FieldExtractor from './FieldExtractor';
+import axios from 'axios';
 
 const ApiConfigPage: React.FC = () => {
   const { state, setApiConfig, setError } = useAppContext();
@@ -29,7 +33,14 @@ const ApiConfigPage: React.FC = () => {
   const [httpMethod, setHttpMethod] = useState<ApiConfig['method']>(state.apiConfig?.method || 'GET');
   const [authConfig, setAuthConfig] = useState<AuthConfig>(state.apiConfig?.authentication || { type: 'none', credentials: null });
   const [headers, setHeaders] = useState<string>(JSON.stringify(state.apiConfig?.headers || {}, null, 2));
-  const [extractedFields, setExtractedFields] = useState<ApiField[]>([]);
+  
+  // API Testing state
+  const [isTestingApi, setIsTestingApi] = useState(false);
+  const [apiResponse, setApiResponse] = useState<any>(null);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [responseStatus, setResponseStatus] = useState<number | null>(null);
+  const [responseTime, setResponseTime] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState(0);
 
   const {
     handleSubmit,
@@ -71,14 +82,115 @@ const ApiConfigPage: React.FC = () => {
     setHttpMethod('GET');
     setAuthConfig({ type: 'none', credentials: null });
     setHeaders('{}');
-    setExtractedFields([]);
     reset();
   };
 
   // Handle field extraction
   const handleFieldsExtracted = (fields: ApiField[]) => {
-    setExtractedFields(fields);
     console.log('Extracted fields:', fields);
+  };
+
+  // Handle field selection
+  const handleFieldsSelected = (selectedFields: Record<string, boolean>) => {
+    console.log('Selected fields:', selectedFields);
+  };
+
+  // Test API endpoint
+  const testApiEndpoint = async () => {
+    if (!apiUrl.trim()) {
+      setError('Please enter a valid API URL');
+      return;
+    }
+
+    setIsTestingApi(true);
+    setApiError(null);
+    setApiResponse(null);
+    setResponseStatus(null);
+    setResponseTime(null);
+
+    const startTime = Date.now();
+
+    try {
+      // Parse headers
+      let parsedHeaders: Record<string, string> = {};
+      try {
+        parsedHeaders = JSON.parse(headers || '{}');
+      } catch (error) {
+        setApiError('Invalid JSON format for headers');
+        setIsTestingApi(false);
+        return;
+      }
+
+      // Prepare request configuration
+      const requestConfig: any = {
+        method: httpMethod.toLowerCase(),
+        url: apiUrl,
+        headers: {
+          'Content-Type': 'application/json',
+          ...parsedHeaders,
+        },
+        timeout: 10000, // 10 second timeout
+      };
+
+      // Add authentication if configured
+      if (authConfig.type !== 'none' && authConfig.credentials) {
+        switch (authConfig.type) {
+          case 'bearer':
+            requestConfig.headers.Authorization = `Bearer ${authConfig.credentials.token}`;
+            break;
+          case 'basic':
+            const credentials = btoa(`${authConfig.credentials.username}:${authConfig.credentials.password}`);
+            requestConfig.headers.Authorization = `Basic ${credentials}`;
+            break;
+          case 'oauth2':
+            // For OAuth2, you would typically get a token first
+            if (authConfig.credentials.token) {
+              requestConfig.headers.Authorization = `Bearer ${authConfig.credentials.token}`;
+            }
+            break;
+        }
+      }
+
+      // Make the API request
+      const response = await axios(requestConfig);
+      const endTime = Date.now();
+      
+      setApiResponse(response.data);
+      setResponseStatus(response.status);
+      setResponseTime(endTime - startTime);
+      
+      // Automatically extract fields from response
+      if (response.data) {
+        // Fields will be automatically extracted by the FieldExtractor component
+        // when it receives the apiResponse data
+      }
+
+      setActiveTab(1); // Switch to response tab
+      
+    } catch (error: any) {
+      const endTime = Date.now();
+      setResponseTime(endTime - startTime);
+      
+      if (error.response) {
+        setApiError(`API Error: ${error.response.status} - ${error.response.statusText}`);
+        setResponseStatus(error.response.status);
+        setApiResponse(error.response.data);
+      } else if (error.request) {
+        setApiError('Network Error: Unable to reach the API endpoint');
+      } else {
+        setApiError(`Request Error: ${error.message}`);
+      }
+    } finally {
+      setIsTestingApi(false);
+    }
+  };
+
+  // Clear API response
+  const clearApiResponse = () => {
+    setApiResponse(null);
+    setApiError(null);
+    setResponseStatus(null);
+    setResponseTime(null);
   };
 
   return (
@@ -144,32 +256,130 @@ const ApiConfigPage: React.FC = () => {
 
           <Divider sx={{ my: 1 }} />
 
-          {/* Field Extractor */}
+          {/* API Testing Section */}
           <Box>
-            <Accordion>
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <CodeIcon color="primary" />
-                  <Typography variant="subtitle2" sx={{ fontSize: '0.9rem', fontWeight: 'bold' }}>
-                    API Response Field Extractor
-                  </Typography>
-                  {extractedFields.length > 0 && (
-                    <Typography variant="caption" sx={{ 
-                      fontSize: '0.7rem', 
-                      color: 'success.main',
-                      fontWeight: 'bold'
-                    }}>
-                      ({extractedFields.length} fields extracted)
+            <Typography variant="subtitle2" gutterBottom sx={{ fontSize: '0.8rem', fontWeight: 'bold' }}>
+              API Testing
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+              <Button
+                variant="contained"
+                size="small"
+                startIcon={isTestingApi ? <CircularProgress size={16} /> : <SendIcon />}
+                onClick={testApiEndpoint}
+                disabled={isTestingApi || !apiUrl.trim()}
+                sx={{ 
+                  fontSize: '0.75rem',
+                  py: 0.5,
+                  flex: 1
+                }}
+              >
+                {isTestingApi ? 'Testing...' : 'Test API'}
+              </Button>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<RefreshIcon />}
+                onClick={clearApiResponse}
+                disabled={!apiResponse && !apiError}
+                sx={{ 
+                  fontSize: '0.75rem',
+                  py: 0.5,
+                  minWidth: 'auto'
+                }}
+              >
+                Clear
+              </Button>
+            </Box>
+
+            {/* API Response Display */}
+            {(apiResponse || apiError) && (
+              <Card sx={{ mb: 2 }}>
+                <CardContent sx={{ p: 1.5 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                    <Typography variant="subtitle2" sx={{ fontSize: '0.8rem', fontWeight: 'bold' }}>
+                      API Response
                     </Typography>
+                    {responseStatus && (
+                      <Chip 
+                        label={`${responseStatus}`} 
+                        size="small" 
+                        color={responseStatus >= 200 && responseStatus < 300 ? 'success' : 'error'}
+                        sx={{ fontSize: '0.7rem', height: 20 }}
+                      />
+                    )}
+                    {responseTime && (
+                      <Chip 
+                        label={`${responseTime}ms`} 
+                        size="small" 
+                        variant="outlined"
+                        sx={{ fontSize: '0.7rem', height: 20 }}
+                      />
+                    )}
+                  </Box>
+
+                  <Tabs 
+                    value={activeTab} 
+                    onChange={(_, newValue) => setActiveTab(newValue)}
+                    sx={{ minHeight: 'auto', mb: 1 }}
+                  >
+                    <Tab 
+                      label="Response" 
+                      sx={{ fontSize: '0.75rem', minHeight: 'auto', py: 0.5 }}
+                    />
+                    <Tab 
+                      label="Fields" 
+                      sx={{ fontSize: '0.75rem', minHeight: 'auto', py: 0.5 }}
+                    />
+                  </Tabs>
+
+                  {activeTab === 0 && (
+                    <Box sx={{ 
+                      maxHeight: 200, 
+                      overflow: 'auto',
+                      backgroundColor: 'grey.50',
+                      p: 1,
+                      borderRadius: 1,
+                      border: '1px solid #e0e0e0'
+                    }}>
+                      {apiError ? (
+                        <Alert severity="error" sx={{ fontSize: '0.8rem' }}>
+                          {apiError}
+                        </Alert>
+                      ) : (
+                        <pre style={{ 
+                          margin: 0, 
+                          fontSize: '0.75rem',
+                          fontFamily: 'monospace',
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-word'
+                        }}>
+                          {JSON.stringify(apiResponse, null, 2)}
+                        </pre>
+                      )}
+                    </Box>
                   )}
-                </Box>
-              </AccordionSummary>
-              <AccordionDetails sx={{ p: 0 }}>
-                <Box sx={{ p: 2 }}>
-                  <FieldExtractor onFieldsExtracted={handleFieldsExtracted} />
-                </Box>
-              </AccordionDetails>
-            </Accordion>
+
+                  {activeTab === 1 && (
+                    <Box sx={{ 
+                      maxHeight: 200, 
+                      overflow: 'auto',
+                      backgroundColor: 'grey.50',
+                      p: 1,
+                      borderRadius: 1,
+                      border: '1px solid #e0e0e0'
+                    }}>
+                      <FieldExtractor 
+                        onFieldsExtracted={handleFieldsExtracted} 
+                        onFieldsSelected={handleFieldsSelected}
+                        initialJsonData={apiResponse}
+                        autoExtract={!!apiResponse}
+                      />
+                    </Box>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </Box>
         </Box>
 
