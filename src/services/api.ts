@@ -1,13 +1,13 @@
-import axios, { AxiosInstance, AxiosResponse } from 'axios';
-import { ApiConfig, ApiResponse } from '../types';
+import axios, { type AxiosInstance, type AxiosResponse } from 'axios';
+import type { ApiConfig, ApiResponse } from '../types';
 
 class ApiService {
   private client: AxiosInstance;
 
   constructor(config: ApiConfig) {
     this.client = axios.create({
-      baseURL: config.baseUrl,
-      timeout: config.timeout,
+      baseURL: config.url,
+      timeout: 10000, // 10 second timeout
       headers: {
         'Content-Type': 'application/json',
         ...config.headers,

@@ -1,228 +1,139 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
-  TextField,
-  Button,
   Alert,
-  List,
-  ListItem,
-  ListItemText,
-  IconButton,
+  Card,
+  CardContent,
+  Divider,
 } from '@mui/material';
-import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
-import { useForm, useFieldArray } from 'react-hook-form';
 import { useAppContext } from '../contexts/AppContext';
-import type { MappingConfig } from '../types';
+import SimpleFieldMapping from './SimpleFieldMapping';
+import type { FieldMapping as FieldMappingType, DatabaseColumn, ApiField } from '../types';
 
 const MappingPage: React.FC = () => {
-  const { state, setMappingConfig, setError } = useAppContext();
-  const [sourceField, setSourceField] = useState('');
-  const [targetField, setTargetField] = useState('');
+  const { state } = useAppContext();
+  const [mappings, setMappings] = useState<FieldMappingType[]>([]);
+  const [apiFields, setApiFields] = useState<any[]>([]);
+  const [databaseFields, setDatabaseFields] = useState<DatabaseColumn[]>([]);
 
-  const {
-    handleSubmit,
-    control,
-    reset,
-  } = useForm<MappingConfig>({
-    defaultValues: state.mappingConfig || {
-      sourceFields: [],
-      targetFields: [],
-      transformations: {},
-    },
+  // Debug: Log the current state
+  console.log('Mapping page state:', {
+    apiConfig: state.apiConfig,
+    databaseConfig: state.databaseConfig,
+    isLoading: state.isLoading,
+    error: state.error
   });
 
-  const { fields: sourceFields, append: appendSource, remove: removeSource } = useFieldArray({
-    control,
-    name: 'sourceFields',
-  });
-
-  const { fields: targetFields, append: appendTarget, remove: removeTarget } = useFieldArray({
-    control,
-    name: 'targetFields',
-  });
-
-  const onSubmit = (data: MappingConfig) => {
-    try {
-      setMappingConfig(data);
-      console.log('Mapping Config saved:', data);
-    } catch (error) {
-      setError('Failed to save mapping configuration');
+  // Load API fields from context
+  useEffect(() => {
+    if (state.apiConfig?.extractedFields && state.apiConfig.extractedFields.length > 0) {
+      console.log('Loading API fields from context:', state.apiConfig.extractedFields);
+      // Convert ApiField[] to DraggedField[] format
+      const draggedFields = state.apiConfig.extractedFields.map((field: ApiField) => ({
+        id: `api-${field.name}`,
+        name: field.name,
+        type: field.type,
+        source: 'api' as const,
+        nullable: true,
+        constraints: [],
+        path: field.path, // Include path for reference
+      }));
+      console.log('Converted API fields:', draggedFields);
+      setApiFields(draggedFields);
+    } else {
+      console.log('No API fields found in context, using mock data');
+      // Use mock API fields for testing
+      const mockApiFields = [
+        { id: 'api-id', name: 'id', type: 'number', source: 'api' as const, nullable: false, constraints: [] },
+        { id: 'api-name', name: 'name', type: 'string', source: 'api' as const, nullable: false, constraints: [] },
+        { id: 'api-email', name: 'email', type: 'string', source: 'api' as const, nullable: false, constraints: [] },
+        { id: 'api-age', name: 'age', type: 'number', source: 'api' as const, nullable: true, constraints: [] },
+        { id: 'api-active', name: 'isActive', type: 'boolean', source: 'api' as const, nullable: false, constraints: [] },
+      ];
+      setApiFields(mockApiFields);
     }
-  };
+  }, [state.apiConfig?.extractedFields]);
 
-  const onReset = () => {
-    reset();
-  };
-
-  const addSourceField = () => {
-    if (sourceField.trim()) {
-      appendSource({ id: Math.random().toString(36).substr(2, 9), value: sourceField.trim() });
-      setSourceField('');
+  // Load database fields from context
+  useEffect(() => {
+    if (state.databaseConfig) {
+      // This would be populated from the database schema
+      // For now, we'll use mock data
+      setDatabaseFields([
+        { name: 'id', type: 'int', nullable: false, constraints: ['PRIMARY KEY'] },
+        { name: 'name', type: 'varchar(100)', nullable: false, constraints: [] },
+        { name: 'email', type: 'varchar(255)', nullable: false, constraints: ['UNIQUE'] },
+        { name: 'created_at', type: 'timestamp', nullable: false, constraints: [] },
+        { name: 'age', type: 'int', nullable: true, constraints: [] },
+        { name: 'is_active', type: 'boolean', nullable: false, constraints: [] },
+        { name: 'salary', type: 'decimal(10,2)', nullable: true, constraints: [] },
+      ]);
     }
+  }, [state.databaseConfig]);
+
+  const handleMappingChange = (newMappings: FieldMappingType[]) => {
+    setMappings(newMappings);
   };
 
-  const addTargetField = () => {
-    if (targetField.trim()) {
-      appendTarget({ id: Math.random().toString(36).substr(2, 9), value: targetField.trim() });
-      setTargetField('');
-    }
-  };
 
   return (
-    <Box>
+    <Box sx={{ p: 2 }}>
+      <Typography variant="h5" gutterBottom sx={{ fontSize: '1.2rem', fontWeight: 'bold' }}>
+        Field Mapping
+      </Typography>
+      
       {state.error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
+        <Alert severity="error" sx={{ mb: 2, fontSize: '0.8rem' }}>
           {state.error}
         </Alert>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-          <Box>
-            <Typography variant="subtitle2" gutterBottom sx={{ fontSize: '0.75rem', fontWeight: 'bold' }}>
-              Source Fields
+      {/* Status Cards */}
+      <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+        <Card sx={{ flex: 1 }}>
+          <CardContent sx={{ p: 1.5, textAlign: 'center' }}>
+            <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 'bold' }}>
+              {apiFields.length}
             </Typography>
-            <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
-              <TextField
-                fullWidth
-                size="small"
-                placeholder="Add source field"
-                value={sourceField}
-                onChange={(e) => setSourceField(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    addSourceField();
-                  }
-                }}
-                sx={{ '& .MuiInputBase-input': { fontSize: '0.8rem' } }}
-              />
-              <Button
-                variant="contained"
-                size="small"
-                onClick={addSourceField}
-                disabled={!sourceField.trim()}
-                sx={{ minWidth: 'auto', px: 1 }}
-              >
-                <AddIcon fontSize="small" />
-              </Button>
-            </Box>
-            <List dense sx={{ maxHeight: '120px', overflow: 'auto' }}>
-              {sourceFields.map((field, index) => (
-                <ListItem
-                  key={field.id}
-                  sx={{ py: 0.5, px: 0 }}
-                  secondaryAction={
-                    <IconButton
-                      edge="end"
-                      size="small"
-                      onClick={() => removeSource(index)}
-                    >
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  }
-                >
-                  <ListItemText 
-                    primary={field.value} 
-                    sx={{ '& .MuiListItemText-primary': { fontSize: '0.7rem' } }}
-                  />
-                </ListItem>
-              ))}
-            </List>
-          </Box>
-
-          <Box>
-            <Typography variant="subtitle2" gutterBottom sx={{ fontSize: '0.75rem', fontWeight: 'bold' }}>
-              Target Fields
+            <Typography variant="body2" sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>
+              API Fields Available
             </Typography>
-            <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
-              <TextField
-                fullWidth
-                size="small"
-                placeholder="Add target field"
-                value={targetField}
-                onChange={(e) => setTargetField(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    addTargetField();
-                  }
-                }}
-                sx={{ '& .MuiInputBase-input': { fontSize: '0.8rem' } }}
-              />
-              <Button
-                variant="contained"
-                size="small"
-                onClick={addTargetField}
-                disabled={!targetField.trim()}
-                sx={{ minWidth: 'auto', px: 1 }}
-              >
-                <AddIcon fontSize="small" />
-              </Button>
-            </Box>
-            <List dense sx={{ maxHeight: '120px', overflow: 'auto' }}>
-              {targetFields.map((field, index) => (
-                <ListItem
-                  key={field.id}
-                  sx={{ py: 0.5, px: 0 }}
-                  secondaryAction={
-                    <IconButton
-                      edge="end"
-                      size="small"
-                      onClick={() => removeTarget(index)}
-                    >
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  }
-                >
-                  <ListItemText 
-                    primary={field.value} 
-                    sx={{ '& .MuiListItemText-primary': { fontSize: '0.7rem' } }}
-                  />
-                </ListItem>
-              ))}
-            </List>
-          </Box>
-        </Box>
+          </CardContent>
+        </Card>
+        <Card sx={{ flex: 1 }}>
+          <CardContent sx={{ p: 1.5, textAlign: 'center' }}>
+            <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 'bold' }}>
+              {databaseFields.length}
+            </Typography>
+            <Typography variant="body2" sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>
+              Database Fields Available
+            </Typography>
+          </CardContent>
+        </Card>
+        <Card sx={{ flex: 1 }}>
+          <CardContent sx={{ p: 1.5, textAlign: 'center' }}>
+            <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 'bold' }}>
+              {mappings.length}
+            </Typography>
+            <Typography variant="body2" sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>
+              Active Mappings
+            </Typography>
+          </CardContent>
+        </Card>
+      </Box>
 
-        <Box sx={{ 
-          mt: 1.5, 
-          display: 'flex', 
-          gap: 1,
-          flexDirection: { xs: 'column', sm: 'row' }
-        }}>
-          <Button
-            type="submit"
-            variant="contained"
-            color="primary"
-            size="small"
-            disabled={state.isLoading}
-            sx={{ 
-              width: { xs: '100%', sm: 'auto' },
-              minWidth: { xs: 'auto', sm: '80px' },
-              fontSize: '0.75rem',
-              py: 0.5
-            }}
-          >
-            Save
-          </Button>
-          <Button
-            type="button"
-            variant="outlined"
-            size="small"
-            onClick={onReset}
-            sx={{ 
-              width: { xs: '100%', sm: 'auto' },
-              minWidth: { xs: 'auto', sm: '70px' },
-              fontSize: '0.75rem',
-              py: 0.5
-            }}
-          >
-            Reset
-          </Button>
-        </Box>
-      </form>
+      <Divider sx={{ mb: 3 }} />
+
+      {/* Field Mapping Panel */}
+      <SimpleFieldMapping
+        apiFields={apiFields}
+        dbColumns={databaseFields}
+        mappings={mappings}
+        onMappingChange={handleMappingChange}
+        onClearMappings={() => setMappings([])}
+        disabled={state.isLoading}
+      />
     </Box>
   );
 };

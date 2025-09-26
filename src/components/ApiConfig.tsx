@@ -41,6 +41,10 @@ const ApiConfigPage: React.FC = () => {
   const [responseStatus, setResponseStatus] = useState<number | null>(null);
   const [responseTime, setResponseTime] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState(0);
+  
+  // Field extraction state
+  const [extractedFields, setExtractedFields] = useState<ApiField[]>([]);
+  const [selectedFields, setSelectedFields] = useState<Record<string, boolean>>({});
 
   const {
     handleSubmit,
@@ -62,16 +66,28 @@ const ApiConfigPage: React.FC = () => {
         return;
       }
 
+      // Get selected fields from extracted fields
+      console.log('All extracted fields:', extractedFields);
+      console.log('Selected fields state:', selectedFields);
+      
+      const selectedApiFields = extractedFields.filter(field => 
+        selectedFields[field.path] === true
+      );
+      
+      console.log('Filtered selected fields:', selectedApiFields);
+
       // Create the new API configuration
       const newApiConfig: ApiConfig = {
         url: apiUrl,
         method: httpMethod,
         authentication: authConfig,
         headers: parsedHeaders,
+        extractedFields: selectedApiFields,
       };
 
       setApiConfig(newApiConfig);
       console.log('API Config saved:', newApiConfig);
+      console.log('Selected fields passed to mapping:', selectedApiFields);
     } catch (error) {
       setError('Failed to save API configuration');
     }
@@ -88,11 +104,13 @@ const ApiConfigPage: React.FC = () => {
   // Handle field extraction
   const handleFieldsExtracted = (fields: ApiField[]) => {
     console.log('Extracted fields:', fields);
+    setExtractedFields(fields);
   };
 
   // Handle field selection
   const handleFieldsSelected = (selectedFields: Record<string, boolean>) => {
     console.log('Selected fields:', selectedFields);
+    setSelectedFields(selectedFields);
   };
 
   // Test API endpoint
@@ -383,6 +401,36 @@ const ApiConfigPage: React.FC = () => {
           </Box>
         </Box>
 
+        {/* Selected Fields Summary */}
+        {extractedFields.length > 0 && (
+          <Card sx={{ mb: 2 }}>
+            <CardContent sx={{ p: 1.5 }}>
+              <Typography variant="subtitle2" sx={{ fontSize: '0.8rem', fontWeight: 'bold', mb: 1 }}>
+                Selected Fields for Mapping ({Object.values(selectedFields).filter(Boolean).length}/{extractedFields.length})
+              </Typography>
+              {Object.values(selectedFields).filter(Boolean).length > 0 ? (
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                  {extractedFields
+                    .filter(field => selectedFields[field.path])
+                    .map((field, index) => (
+                      <Chip
+                        key={index}
+                        label={`${field.name} (${field.type})`}
+                        size="small"
+                        color="primary"
+                        sx={{ fontSize: '0.7rem', height: 18 }}
+                      />
+                    ))}
+                </Box>
+              ) : (
+                <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>
+                  No fields selected. Select fields in the tree view above to include them in the mapping.
+                </Typography>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         <Box sx={{ 
           mt: 2, 
           display: 'flex', 
@@ -403,6 +451,19 @@ const ApiConfigPage: React.FC = () => {
             }}
           >
             Save Configuration
+            {extractedFields.length > 0 && (
+              <Chip 
+                label={`${Object.values(selectedFields).filter(Boolean).length}/${extractedFields.length} fields`}
+                size="small"
+                color="secondary"
+                sx={{ 
+                  ml: 1, 
+                  fontSize: '0.7rem', 
+                  height: 20,
+                  '& .MuiChip-label': { px: 1 }
+                }}
+              />
+            )}
           </Button>
           <Button
             type="button"

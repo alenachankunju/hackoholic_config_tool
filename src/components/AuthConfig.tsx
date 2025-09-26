@@ -7,8 +7,6 @@ import {
   Radio,
   FormControl,
   FormLabel,
-  IconButton,
-  InputAdornment,
   Typography,
   Chip,
   Alert,
@@ -16,8 +14,6 @@ import {
   CircularProgress,
 } from '@mui/material';
 import {
-  Visibility,
-  VisibilityOff,
   Security as SecurityIcon,
   Key as KeyIcon,
   Person as PersonIcon,
@@ -95,12 +91,11 @@ const AuthConfigComponent: React.FC<AuthConfigProps> = ({
   onChange,
   disabled = false,
 }) => {
-  const [showCredentials, setShowCredentials] = useState(false);
   const [testResult, setTestResult] = useState<TestResult | null>(null);
   const [isTesting, setIsTesting] = useState(false);
 
   // Initialize form with current values
-  const { control, handleSubmit, watch, setValue, reset } = useForm<AuthFormData>({
+  const { control, handleSubmit, watch, setValue } = useForm<AuthFormData>({
     defaultValues: {
       authType: value.type,
       token: value.credentials?.token || '',
@@ -135,24 +130,6 @@ const AuthConfigComponent: React.FC<AuthConfigProps> = ({
     }
   };
 
-  const decryptCredentials = (encryptedCredentials: any): any => {
-    if (!encryptedCredentials) return null;
-    
-    try {
-      const decryptedCredentials: any = {};
-      for (const [key, val] of Object.entries(encryptedCredentials)) {
-        if (val && typeof val === 'string') {
-          decryptedCredentials[key] = CryptoJS.AES.decrypt(val, ENCRYPTION_KEY).toString(CryptoJS.enc.Utf8);
-        } else {
-          decryptedCredentials[key] = val;
-        }
-      }
-      return decryptedCredentials;
-    } catch (error) {
-      console.error('Decryption failed:', error);
-      return encryptedCredentials;
-    }
-  };
 
   // Handle authentication type change
   const handleAuthTypeChange = (newType: AuthConfig['type']) => {
@@ -185,16 +162,20 @@ const AuthConfigComponent: React.FC<AuthConfigProps> = ({
     }
   };
 
-  // Handle form submission
-  const onSubmit = (data: AuthFormData) => {
-    const credentials = getCredentialsFromFormData(data);
-    const encryptedCredentials = encryptCredentials(credentials);
-    
-    onChange({
-      type: data.authType,
-      credentials: encryptedCredentials,
+
+  // Watch for changes and automatically update parent
+  React.useEffect(() => {
+    const subscription = watch((data) => {
+      const credentials = getCredentialsFromFormData(data as AuthFormData);
+      const encryptedCredentials = encryptCredentials(credentials);
+      
+      onChange({
+        type: data.authType || 'none',
+        credentials: encryptedCredentials,
+      });
     });
-  };
+    return () => subscription.unsubscribe();
+  }, [watch, onChange]);
 
   // Get credentials object from form data
   const getCredentialsFromFormData = (data: AuthFormData) => {
@@ -220,10 +201,6 @@ const AuthConfigComponent: React.FC<AuthConfigProps> = ({
     }
   };
 
-  // Toggle credential visibility
-  const toggleCredentialVisibility = () => {
-    setShowCredentials(!showCredentials);
-  };
 
   // Test authentication
   const testAuthentication = async (data: AuthFormData) => {
@@ -467,7 +444,7 @@ const AuthConfigComponent: React.FC<AuthConfigProps> = ({
   const selectedAuthType = AUTH_TYPES.find(type => type.value === watchedAuthType);
 
   return (
-    <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       {/* Authentication Type Selection with Radio Buttons */}
       <FormControl component="fieldset" disabled={disabled}>
         <FormLabel component="legend" sx={{ fontSize: '0.8rem', fontWeight: 'bold', mb: 1 }}>
@@ -577,7 +554,7 @@ const AuthConfigComponent: React.FC<AuthConfigProps> = ({
         {/* Test Result */}
         {testResult && (
           <Alert 
-            severity={testResult.status} 
+            severity={testResult.status === 'testing' ? 'info' : testResult.status} 
             icon={testResult.status === 'success' ? <CheckIcon /> : <ErrorIcon />}
             sx={{ fontSize: '0.8rem' }}
           >

@@ -2,6 +2,7 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { Box } from '@mui/material';
 import { AppProvider } from './contexts/AppContext';
+import { DragDropProvider } from './contexts/DragDropContext';
 import Home from './components/Home';
 
 const theme = createTheme({
@@ -33,15 +34,17 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <AppProvider>
-        <Box sx={{ 
-          width: '100vw',
-          height: '100vh',
-          margin: 0,
-          padding: 0,
-          overflow: 'hidden'
-        }}>
-          <Home />
-        </Box>
+        <DragDropProvider>
+          <Box sx={{ 
+            width: '100vw',
+            height: '100vh',
+            margin: 0,
+            padding: 0,
+            overflow: 'hidden'
+          }}>
+            <Home />
+          </Box>
+        </DragDropProvider>
       </AppProvider>
     </ThemeProvider>
   );
