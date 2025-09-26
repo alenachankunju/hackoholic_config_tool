@@ -1,11 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box,
-  Typography,
   Alert,
-  Card,
-  CardContent,
-  Divider,
 } from '@mui/material';
 import { useAppContext } from '../contexts/AppContext';
 import SimpleFieldMapping from './SimpleFieldMapping';
