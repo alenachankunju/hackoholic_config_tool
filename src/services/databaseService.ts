@@ -2,8 +2,8 @@ import type { DatabaseConfig, DatabaseColumn } from '../types';
 
 // API base URL - adjust this to match your backend server
 const API_BASE_URL = import.meta.env.PROD 
-  ? 'https://your-api-server.com' 
-  : 'http://localhost:3001';
+  ? 'https://hackoholic-config-tool-1.onrender.com'
+  : 'https://hackoholic-config-tool-1.onrender.com'
 
 // Database Service using API calls
 export const databaseService = {
