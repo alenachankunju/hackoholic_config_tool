@@ -239,24 +239,7 @@ const DatabaseConfigPage: React.FC = () => {
           >
             Save Configuration
           </Button>
-          <Button
-            variant="outlined"
-            size="small"
-            startIcon={<CodeIcon />}
-            onClick={() => {
-              console.log('Opening query modal from action buttons...');
-              setIsQueryModalOpen(true);
-            }}
-            disabled={state.isLoading}
-            sx={{ 
-              width: { xs: '100%', sm: 'auto' },
-              minWidth: { xs: 'auto', sm: '100px' },
-              fontSize: '0.75rem',
-              py: 0.5
-            }}
-          >
-            Open Query Editor
-          </Button>
+          
           <Button
             variant="outlined"
             size="small"

@@ -73,18 +73,8 @@ const MappingPage: React.FC = () => {
         </Alert>
       )}
 
-      {/* Status Cards */}
+      {/* Status Cards (removed API card as requested) */}
       <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-        <Card sx={{ flex: 1 }}>
-          <CardContent sx={{ p: 1.5, textAlign: 'center' }}>
-            <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 'bold' }}>
-              {apiFields.length}
-            </Typography>
-            <Typography variant="body2" sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>
-              API Fields Available
-            </Typography>
-          </CardContent>
-        </Card>
         <Card sx={{ flex: 1 }}>
           <CardContent sx={{ p: 1.5, textAlign: 'center' }}>
             <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 'bold' }}>
