@@ -63,41 +63,12 @@ const MappingPage: React.FC = () => {
 
   return (
     <Box sx={{ p: 2 }}>
-      <Typography variant="h5" gutterBottom sx={{ fontSize: '1.2rem', fontWeight: 'bold' }}>
-        Field Mapping
-      </Typography>
-      
       {state.error && (
         <Alert severity="error" sx={{ mb: 2, fontSize: '0.8rem' }}>
           {state.error}
         </Alert>
       )}
 
-      {/* Status Cards (removed API card as requested) */}
-      <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-        <Card sx={{ flex: 1 }}>
-          <CardContent sx={{ p: 1.5, textAlign: 'center' }}>
-            <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 'bold' }}>
-              {databaseFields.length}
-            </Typography>
-            <Typography variant="body2" sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>
-              Database Fields Available
-            </Typography>
-          </CardContent>
-        </Card>
-        <Card sx={{ flex: 1 }}>
-          <CardContent sx={{ p: 1.5, textAlign: 'center' }}>
-            <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 'bold' }}>
-              {mappings.length}
-            </Typography>
-            <Typography variant="body2" sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>
-              Active Mappings
-            </Typography>
-          </CardContent>
-        </Card>
-      </Box>
-
-      <Divider sx={{ mb: 3 }} />
 
       {/* Field Mapping Panel */}
       <SimpleFieldMapping

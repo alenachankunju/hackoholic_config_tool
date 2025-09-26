@@ -27,7 +27,7 @@ const HomePage: React.FC = () => {
   };
 
   const getOverallProgress = () => {
-    const configs = [state.apiConfig, state.databaseConfig, state.mappingConfig];
+    const configs = [state.apiConfig, state.databaseConfig];
     const configured = configs.filter(Boolean).length;
     return (configured / configs.length) * 100;
   };
@@ -128,12 +128,6 @@ const HomePage: React.FC = () => {
                 <Typography variant="h6" sx={{ fontSize: '0.95rem', fontWeight: 'bold' }}>
                   Field Mapping
                 </Typography>
-                <Chip 
-                  label={getStatusText(state.mappingConfig)} 
-                  color={getStatusColor(state.mappingConfig) as any}
-                  size="small"
-                  sx={{ ml: 'auto', fontSize: '0.7rem', height: 20 }}
-                />
               </Box>
               <Mapping />
             </Paper>
@@ -192,14 +186,6 @@ const HomePage: React.FC = () => {
             {getStatusIcon(state.databaseConfig)}
             <Typography variant="body2" sx={{ fontSize: '0.75rem', fontWeight: 'bold' }}>
               Database
-            </Typography>
-          </Box>
-          
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, backgroundColor: 'white', px: 1.5, py: 0.5, borderRadius: 1, border: '1px solid #e0e0e0' }}>
-            <MappingIcon sx={{ fontSize: 16 }} />
-            {getStatusIcon(state.mappingConfig)}
-            <Typography variant="body2" sx={{ fontSize: '0.75rem', fontWeight: 'bold' }}>
-              Mapping
             </Typography>
           </Box>
           <Button

@@ -247,9 +247,6 @@ const SimpleFieldMapping: React.FC<SimpleFieldMappingProps> = ({
       {/* Header */}
       <Box sx={{ mb: 2 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-          <Typography variant="h6" sx={{ fontSize: '1.1rem', fontWeight: 'bold' }}>
-            Field Mapping
-          </Typography>
           <Box sx={{ display: 'flex', gap: 1 }}>
             <Button
               variant="outlined"
