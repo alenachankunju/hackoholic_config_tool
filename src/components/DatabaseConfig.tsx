@@ -132,6 +132,7 @@ const DatabaseConfigPage: React.FC = () => {
             Connection Settings
           </Typography>
           <DatabaseConnectionForm
+            key={`${selectedDatabaseType}-${connectionConfig.host}-${connectionConfig.database}`}
             databaseType={selectedDatabaseType}
             onConfigChange={handleConnectionConfigChange}
             disabled={state.isLoading}
@@ -189,53 +190,29 @@ const DatabaseConfigPage: React.FC = () => {
             <Typography variant="subtitle2" sx={{ fontSize: '0.8rem', fontWeight: 'bold' }}>
               Database Schema
             </Typography>
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <Button
-                variant="outlined"
-                size="small"
-                startIcon={<CodeIcon />}
-                onClick={() => {
-                  console.log('Opening query modal...');
-                  setIsQueryModalOpen(true);
-                }}
-                disabled={state.isLoading}
-                sx={{ 
-                  fontSize: '0.75rem',
-                  py: 0.5,
-                  px: 1
-                }}
-              >
-                Query Editor
-              </Button>
+            <Box>
               <Button
                 variant="contained"
                 size="small"
-                color="secondary"
-                onClick={() => {
-                  console.log('Test modal button clicked');
-                  setIsQueryModalOpen(true);
-                }}
-                sx={{ 
-                  fontSize: '0.75rem',
-                  py: 0.5,
-                  px: 1
-                }}
+                startIcon={<CodeIcon />}
+                onClick={() => setIsQueryModalOpen(true)}
+                disabled={state.isLoading}
+                sx={{ fontSize: '0.75rem', py: 0.5, px: 1 }}
               >
-                Test Modal
+                Query Editor
               </Button>
             </Box>
           </Box>
           <SchemaTreeViewer
             config={connectionConfig}
-            onTableSelect={(table, columns) => {
-              console.log('Selected table:', table, 'Columns:', columns);
+            onTableSelect={(_table, columns) => {
+              // Persist selected table columns into context for Mapping
+              try {
+                (window as any).__setSelectedTableColumns = columns;
+              } catch {}
             }}
-            onSchemaSelect={(schema) => {
-              console.log('Selected schema:', schema);
-            }}
-            onColumnSelect={(column, table, schema) => {
-              console.log('Selected column:', column, 'from table:', table, 'in schema:', schema);
-            }}
+            onSchemaSelect={() => {}}
+            onColumnSelect={() => {}}
             disabled={state.isLoading}
           />
         </Box>

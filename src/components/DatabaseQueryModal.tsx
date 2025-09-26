@@ -36,6 +36,7 @@ import {
   CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
 import type { DatabaseConfig } from '../types';
+import { databaseService } from '../services/databaseService';
 
 interface DatabaseQueryModalProps {
   open: boolean;
@@ -116,57 +117,19 @@ const DatabaseQueryModal: React.FC<DatabaseQueryModalProps> = ({
         setQueryHistory(prev => [query.trim(), ...prev.slice(0, 9)]); // Keep last 10 queries
       }
 
-      // For now, we'll simulate query execution
-      // In a real implementation, you would use the database service
-      await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
-
+      console.log('Executing query:', query);
+      const queryResult = await databaseService.executeQuery(config, query);
       const executionTime = Date.now() - startTime;
 
-      // Simulate different results based on query type
-      let mockResult: QueryResult;
-      
-      if (query.toLowerCase().includes('select')) {
-        // Simulate SELECT query result
-        const mockData = [
-          { id: 1, name: 'Sample Record 1', created_at: '2024-01-01T00:00:00Z' },
-          { id: 2, name: 'Sample Record 2', created_at: '2024-01-02T00:00:00Z' },
-          { id: 3, name: 'Sample Record 3', created_at: '2024-01-03T00:00:00Z' },
-        ];
-        
-        mockResult = {
-          success: true,
-          data: mockData,
-          columns: Object.keys(mockData[0]),
-          executionTime,
-          rowCount: mockData.length,
-        };
-      } else if (query.toLowerCase().includes('show') || query.toLowerCase().includes('describe')) {
-        // Simulate SHOW/DESCRIBE query result
-        const mockData = [
-          { Table: 'users', Type: 'BASE TABLE' },
-          { Table: 'orders', Type: 'BASE TABLE' },
-          { Table: 'products', Type: 'BASE TABLE' },
-        ];
-        
-        mockResult = {
-          success: true,
-          data: mockData,
-          columns: Object.keys(mockData[0]),
-          executionTime,
-          rowCount: mockData.length,
-        };
-      } else {
-        // Simulate other query types (INSERT, UPDATE, DELETE)
-        mockResult = {
-          success: true,
-          data: [],
-          columns: [],
-          executionTime,
-          rowCount: 0,
-        };
-      }
+      const result: QueryResult = {
+        success: true,
+        data: queryResult.data,
+        columns: queryResult.data.length > 0 ? Object.keys(queryResult.data[0]) : [],
+        executionTime,
+        rowCount: queryResult.rowCount
+      };
 
-      setResult(mockResult);
+      setResult(result);
     } catch (error) {
       const executionTime = Date.now() - startTime;
       setResult({

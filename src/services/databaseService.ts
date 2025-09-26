@@ -89,5 +89,27 @@ export const databaseService = {
       console.error('Failed to get database columns:', error);
       throw error;
     }
+  },
+
+  async executeQuery(config: DatabaseConfig, query: string): Promise<{ data: any[], rowCount: number }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/database/query`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ...config, query }),
+      });
+      
+      const result = await response.json();
+      if (result.success) {
+        return { data: result.data, rowCount: result.rowCount };
+      } else {
+        throw new Error(result.error || 'Failed to execute query');
+      }
+    } catch (error) {
+      console.error('Failed to execute query:', error);
+      throw error;
+    }
   }
 };

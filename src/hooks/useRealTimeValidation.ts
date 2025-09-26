@@ -46,7 +46,7 @@ export const useRealTimeValidation = ({
   // Debounced validation function
   const debouncedValidate = useCallback(
     (() => {
-      let timeoutId: number;
+      let timeoutId: ReturnType<typeof setTimeout>;
       return () => {
         clearTimeout(timeoutId);
         timeoutId = setTimeout(() => {

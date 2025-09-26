@@ -56,23 +56,34 @@ async function createMSSQLConnection(config) {
 // Test database connection
 app.post('/api/database/test', async (req, res) => {
   try {
+    console.log('Testing database connection:', req.body);
     const { type, ...config } = req.body;
+    
+    if (!type) {
+      throw new Error('Database type is required');
+    }
     
     switch (type) {
       case 'mysql':
+        console.log('Testing MySQL connection...');
         const mysqlConn = await createMySQLConnection(config);
         await mysqlConn.ping();
         await mysqlConn.end();
+        console.log('MySQL connection successful');
         break;
       case 'postgresql':
+        console.log('Testing PostgreSQL connection...');
         const pgConn = await createPostgreSQLConnection(config);
         await pgConn.query('SELECT 1');
         await pgConn.end();
+        console.log('PostgreSQL connection successful');
         break;
       case 'mssql':
+        console.log('Testing MS SQL Server connection...');
         const mssqlConn = await createMSSQLConnection(config);
         await mssqlConn.request().query('SELECT 1');
         await mssqlConn.close();
+        console.log('MS SQL Server connection successful');
         break;
       default:
         throw new Error(`Unsupported database type: ${type}`);
@@ -80,6 +91,7 @@ app.post('/api/database/test', async (req, res) => {
     
     res.json({ success: true, message: 'Connection successful' });
   } catch (error) {
+    console.error('Database connection test failed:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -87,11 +99,17 @@ app.post('/api/database/test', async (req, res) => {
 // Get database schemas
 app.post('/api/database/schemas', async (req, res) => {
   try {
+    console.log('Getting schemas for:', req.body);
     const { type, ...config } = req.body;
     let schemas = [];
     
+    if (!type) {
+      throw new Error('Database type is required');
+    }
+    
     switch (type) {
       case 'mysql':
+        console.log('Getting MySQL schemas...');
         const mysqlConn = await createMySQLConnection(config);
         const [mysqlRows] = await mysqlConn.execute('SHOW DATABASES');
         await mysqlConn.end();
@@ -99,6 +117,7 @@ app.post('/api/database/schemas', async (req, res) => {
         break;
         
       case 'postgresql':
+        console.log('Getting PostgreSQL schemas...');
         const pgConn = await createPostgreSQLConnection(config);
         const pgResult = await pgConn.query(`
           SELECT schema_name 
@@ -111,6 +130,7 @@ app.post('/api/database/schemas', async (req, res) => {
         break;
         
       case 'mssql':
+        console.log('Getting MS SQL Server schemas...');
         const mssqlConn = await createMSSQLConnection(config);
         const mssqlResult = await mssqlConn.request().query(`
           SELECT name FROM sys.schemas 
@@ -124,8 +144,10 @@ app.post('/api/database/schemas', async (req, res) => {
         throw new Error(`Unsupported database type: ${type}`);
     }
     
+    console.log('Schemas found:', schemas);
     res.json({ success: true, schemas });
   } catch (error) {
+    console.error('Failed to get schemas:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -288,6 +310,55 @@ function getPostgreSQLConstraints(row) {
   
   return constraints;
 }
+
+// Execute SQL query
+app.post('/api/database/query', async (req, res) => {
+  try {
+    console.log('Executing query:', req.body);
+    const { type, query, ...config } = req.body;
+    
+    if (!type || !query) {
+      throw new Error('Database type and query are required');
+    }
+    
+    let result;
+    
+    switch (type) {
+      case 'mysql':
+        console.log('Executing MySQL query...');
+        const mysqlConn = await createMySQLConnection(config);
+        const [mysqlRows] = await mysqlConn.execute(query);
+        await mysqlConn.end();
+        result = mysqlRows;
+        break;
+        
+      case 'postgresql':
+        console.log('Executing PostgreSQL query...');
+        const pgConn = await createPostgreSQLConnection(config);
+        const pgResult = await pgConn.query(query);
+        await pgConn.end();
+        result = pgResult.rows;
+        break;
+        
+      case 'mssql':
+        console.log('Executing MS SQL Server query...');
+        const mssqlConn = await createMSSQLConnection(config);
+        const mssqlResult = await mssqlConn.request().query(query);
+        await mssqlConn.close();
+        result = mssqlResult.recordset;
+        break;
+        
+      default:
+        throw new Error(`Unsupported database type: ${type}`);
+    }
+    
+    console.log('Query executed successfully, rows:', result.length);
+    res.json({ success: true, data: result, rowCount: result.length });
+  } catch (error) {
+    console.error('Query execution failed:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 
 // Start server
 app.listen(PORT, () => {

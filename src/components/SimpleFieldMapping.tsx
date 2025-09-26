@@ -8,13 +8,7 @@ import {
   Chip,
   IconButton,
 } from '@mui/material';
-import {
-  Delete as DeleteIcon,
-  Clear as ClearIcon,
-  Api as ApiIcon,
-  Storage as DatabaseIcon,
-  Link as LinkIcon,
-} from '@mui/icons-material';
+import { Delete as DeleteIcon, Clear as ClearIcon, Api as ApiIcon, Storage as DatabaseIcon } from '@mui/icons-material';
 import { useDrag, useDrop } from 'react-dnd';
 import { getCompatibilityResult } from '../utils/typeCompatibility';
 import type { DraggedField, FieldMapping, DatabaseColumn } from '../types';
@@ -171,12 +165,7 @@ const MappingZone: React.FC<MappingZoneProps> = ({ onDrop, disabled = false }) =
         mb: 2,
       }}
     >
-      <Box sx={{ textAlign: 'center' }}>
-        <LinkIcon sx={{ fontSize: 40, color: 'text.secondary', mb: 1 }} />
-        <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
-          Drag fields here to create mappings
-        </Typography>
-      </Box>
+      {/* Empty state intentionally minimal */}
     </Box>
   );
 };

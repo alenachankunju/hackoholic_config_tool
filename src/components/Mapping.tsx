@@ -42,33 +42,17 @@ const MappingPage: React.FC = () => {
       console.log('Converted API fields:', draggedFields);
       setApiFields(draggedFields);
     } else {
-      console.log('No API fields found in context, using mock data');
-      // Use mock API fields for testing
-      const mockApiFields = [
-        { id: 'api-id', name: 'id', type: 'number', source: 'api' as const, nullable: false, constraints: [] },
-        { id: 'api-name', name: 'name', type: 'string', source: 'api' as const, nullable: false, constraints: [] },
-        { id: 'api-email', name: 'email', type: 'string', source: 'api' as const, nullable: false, constraints: [] },
-        { id: 'api-age', name: 'age', type: 'number', source: 'api' as const, nullable: true, constraints: [] },
-        { id: 'api-active', name: 'isActive', type: 'boolean', source: 'api' as const, nullable: false, constraints: [] },
-      ];
-      setApiFields(mockApiFields);
+      setApiFields([]);
     }
   }, [state.apiConfig?.extractedFields]);
 
   // Load database fields from context
   useEffect(() => {
-    if (state.databaseConfig) {
-      // This would be populated from the database schema
-      // For now, we'll use mock data
-      setDatabaseFields([
-        { name: 'id', type: 'int', nullable: false, constraints: ['PRIMARY KEY'] },
-        { name: 'name', type: 'varchar(100)', nullable: false, constraints: [] },
-        { name: 'email', type: 'varchar(255)', nullable: false, constraints: ['UNIQUE'] },
-        { name: 'created_at', type: 'timestamp', nullable: false, constraints: [] },
-        { name: 'age', type: 'int', nullable: true, constraints: [] },
-        { name: 'is_active', type: 'boolean', nullable: false, constraints: [] },
-        { name: 'salary', type: 'decimal(10,2)', nullable: true, constraints: [] },
-      ]);
+    const injected = (window as any).__setSelectedTableColumns;
+    if (state.databaseConfig && Array.isArray(injected)) {
+      setDatabaseFields(injected as DatabaseColumn[]);
+    } else {
+      setDatabaseFields([]);
     }
   }, [state.databaseConfig]);
 

@@ -1,14 +1,5 @@
 import React from 'react';
-import {
-  Box,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Typography,
-  Tooltip,
-  Chip,
-} from '@mui/material';
+import { Box, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
 import {
   Storage as MySQLIcon,
   Storage as PostgreSQLIcon,
@@ -55,11 +46,10 @@ const DatabaseTypeSelector: React.FC<DatabaseTypeSelectorProps> = ({
   onTypeChange,
   disabled = false,
 }) => {
-  const selectedDatabase = DATABASE_TYPES.find(db => db.value === selectedType);
+  // Simplified dropdown only; no extra UI elements
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      {/* Database Type Selection */}
       <FormControl fullWidth size="small" disabled={disabled}>
         <InputLabel sx={{ fontSize: '0.8rem' }}>Database Type</InputLabel>
         <Select
@@ -73,71 +63,11 @@ const DatabaseTypeSelector: React.FC<DatabaseTypeSelectorProps> = ({
         >
           {DATABASE_TYPES.map((database) => (
             <MenuItem key={database.value} value={database.value}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
-                <Box sx={{ color: database.color }}>
-                  {database.icon}
-                </Box>
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant="body2" sx={{ fontSize: '0.8rem', fontWeight: 'bold' }}>
-                    {database.label}
-                  </Typography>
-                  <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>
-                    Port: {database.port}
-                  </Typography>
-                </Box>
-                <Chip 
-                  label={database.label} 
-                  size="small" 
-                  sx={{ 
-                    fontSize: '0.7rem',
-                    backgroundColor: database.color,
-                    color: 'white',
-                    height: 20
-                  }} 
-                />
-              </Box>
+              {database.label}
             </MenuItem>
           ))}
         </Select>
       </FormControl>
-
-      {/* Selected Database Info */}
-      {selectedDatabase && (
-        <Box sx={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: 1,
-          p: 1.5,
-          backgroundColor: 'grey.50',
-          borderRadius: 1,
-          border: '1px solid',
-          borderColor: 'grey.200'
-        }}>
-          <Tooltip title={selectedDatabase.description} arrow>
-            <Box sx={{ color: selectedDatabase.color, cursor: 'help' }}>
-              {selectedDatabase.icon}
-            </Box>
-          </Tooltip>
-          <Box sx={{ flex: 1 }}>
-            <Typography variant="body2" sx={{ fontSize: '0.8rem', fontWeight: 'bold' }}>
-              {selectedDatabase.label}
-            </Typography>
-            <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>
-              Default Port: {selectedDatabase.port}
-            </Typography>
-          </Box>
-          <Chip 
-            label={selectedDatabase.label} 
-            size="small" 
-            sx={{ 
-              fontSize: '0.7rem',
-              backgroundColor: selectedDatabase.color,
-              color: 'white',
-              height: 20
-            }} 
-          />
-        </Box>
-      )}
     </Box>
   );
 };
