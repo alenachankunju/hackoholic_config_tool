@@ -1,15 +1,15 @@
 import React from 'react';
-import { Box, Typography, Paper, Chip, LinearProgress } from '@mui/material';
-import { Api as ApiIcon, Storage as DatabaseIcon, AccountTree as MappingIcon, CheckCircle as CheckIcon, Error as ErrorIcon } from '@mui/icons-material';
+import { Box, Typography, Paper, Chip, LinearProgress, Button, Dialog, DialogTitle, DialogContent, DialogActions, IconButton } from '@mui/material';
+import { Api as ApiIcon, Storage as DatabaseIcon, AccountTree as MappingIcon, CheckCircle as CheckIcon, Error as ErrorIcon, PlayArrow as TestIcon, Close as CloseIcon } from '@mui/icons-material';
 import { useAppContext } from '../contexts/AppContext';
 import ApiConfig from './ApiConfig';
 import DatabaseConfig from './DatabaseConfig';
 import Mapping from './Mapping';
- 
+import Testing from './Testing';
 
 const HomePage: React.FC = () => {
   const { state } = useAppContext();
-  
+  const [testingModalOpen, setTestingModalOpen] = React.useState(false);
 
   const getStatusIcon = (config: any) => {
     if (config) return <CheckIcon color="success" sx={{ fontSize: 14 }} />;
@@ -202,12 +202,75 @@ const HomePage: React.FC = () => {
               Mapping
             </Typography>
           </Box>
-          
-          
+          <Button
+            variant="contained"
+            startIcon={<TestIcon />}
+            size="small"
+            onClick={() => setTestingModalOpen(true)}
+            sx={{ 
+              ml: 'auto',
+              fontSize: '0.75rem',
+              py: 0.5,
+              px: 1.5
+            }}
+          >
+            Open Testing
+          </Button>
         </Box>
       </Paper>
 
-      
+      {/* Testing & Validation Modal */}
+      <Dialog
+        open={testingModalOpen}
+        onClose={() => setTestingModalOpen(false)}
+        maxWidth={false}
+        fullWidth
+        PaperProps={{
+          sx: {
+            position: 'fixed',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            m: 0,
+            maxHeight: '80vh',
+            borderRadius: '8px 8px 0 0',
+            width: '100vw',
+            maxWidth: '100vw'
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 1, 
+          pb: 1,
+          fontSize: '1rem',
+          fontWeight: 'bold'
+        }}>
+          <TestIcon color="primary" sx={{ fontSize: 20 }} />
+          Testing & Validation
+          <IconButton
+            onClick={() => setTestingModalOpen(false)}
+            sx={{ ml: 'auto', p: 0.5 }}
+          >
+            <CloseIcon sx={{ fontSize: 18 }} />
+          </IconButton>
+        </DialogTitle>
+        
+        <DialogContent sx={{ p: 2, overflow: 'auto' }}>
+          <Testing />
+        </DialogContent>
+        
+        <DialogActions sx={{ p: 1.5, pt: 0 }}>
+          <Button 
+            onClick={() => setTestingModalOpen(false)} 
+            variant="outlined"
+            size="small"
+          >
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
