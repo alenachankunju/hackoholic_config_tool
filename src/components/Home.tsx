@@ -87,10 +87,11 @@ const HomePage: React.FC = () => {
       </Paper>
 
       {/* Main Content Area */}
-      <Box sx={{ flex: 1, p: 1.5, overflow: { xs: 'auto', lg: 'hidden' } }}>
+      <Box sx={{ flex: 1, p: 1.5, overflow: 'hidden' }}>
         <Box sx={{ 
           display: 'flex', 
           gap: 1.5, 
+          height: '100%',
           flexDirection: { xs: 'column', lg: 'row' },
           minHeight: { xs: 'auto', lg: '100%' }
         }}>
@@ -99,9 +100,10 @@ const HomePage: React.FC = () => {
             flex: { xs: 'none', lg: '0 0 22%' },
             width: { xs: '100%', lg: 'auto' },
             minWidth: { xs: '100%', lg: '280px' },
-            maxWidth: { xs: '100%', lg: '320px' }
+            maxWidth: { xs: '100%', lg: '320px' },
+            height: { xs: 'auto', lg: '100%' }
           }}>
-            <Paper sx={{ p: 1.5, height: { xs: 'auto', lg: '100%' }, overflow: 'auto' }}>
+            <Paper sx={{ p: 1.5, height: '100%', overflow: 'auto' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1.5 }}>
                 <ApiIcon color="primary" sx={{ fontSize: 18 }} />
                 <Typography variant="h6" sx={{ fontSize: '0.95rem', fontWeight: 'bold' }}>
@@ -122,9 +124,10 @@ const HomePage: React.FC = () => {
           <Box sx={{ 
             flex: { xs: 'none', lg: '1 1 56%' },
             width: { xs: '100%', lg: 'auto' },
-            minWidth: { xs: '100%', lg: '400px' }
+            minWidth: { xs: '100%', lg: '400px' },
+            height: { xs: 'auto', lg: '100%' }
           }}>
-            <Paper sx={{ p: 1.5, height: { xs: 'auto', lg: '100%' }, overflow: 'auto' }}>
+            <Paper sx={{ p: 1.5, height: '100%', overflow: 'auto' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1.5 }}>
                 <MappingIcon color="primary" sx={{ fontSize: 18 }} />
                 <Typography variant="h6" sx={{ fontSize: '0.95rem', fontWeight: 'bold' }}>
@@ -140,9 +143,10 @@ const HomePage: React.FC = () => {
             flex: { xs: 'none', lg: '0 0 22%' },
             width: { xs: '100%', lg: 'auto' },
             minWidth: { xs: '100%', lg: '280px' },
-            maxWidth: { xs: '100%', lg: '320px' }
+            maxWidth: { xs: '100%', lg: '320px' },
+            height: { xs: 'auto', lg: '100%' }
           }}>
-            <Paper sx={{ p: 1.5, height: { xs: 'auto', lg: '100%' }, overflow: 'auto' }}>
+            <Paper sx={{ p: 1.5, height: '100%', overflow: 'auto' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1.5 }}>
                 <DatabaseIcon color="primary" sx={{ fontSize: 18 }} />
                 <Typography variant="h6" sx={{ fontSize: '0.95rem', fontWeight: 'bold' }}>
