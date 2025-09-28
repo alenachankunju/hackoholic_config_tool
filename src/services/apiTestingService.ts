@@ -6,7 +6,7 @@
  */
 
 import axios, { type AxiosResponse, type AxiosError } from 'axios';
-import type { ApiConfig, FieldMapping } from '../types';
+import type { ApiConfig, FieldMapping, ApiField } from '../types';
 
 export interface ApiTestResult {
   id: string;
@@ -67,6 +67,43 @@ class ApiTestingService {
     followRedirects: true,
     validateSSL: true,
   };
+
+  /**
+   * Build authentication headers based on ApiConfig.authentication
+   */
+  private buildAuthHeaders(config: ApiConfig): Record<string, string> {
+    const headers: Record<string, string> = {};
+    const auth = config.authentication;
+    if (!auth || auth.type === 'none') return headers;
+
+    try {
+      switch (auth.type) {
+        case 'bearer': {
+          const token = auth.credentials?.token || auth.credentials?.accessToken;
+          if (token) headers['Authorization'] = `Bearer ${token}`;
+          break;
+        }
+        case 'basic': {
+          const username = auth.credentials?.username || '';
+          const password = auth.credentials?.password || '';
+          const encoded = typeof btoa === 'function'
+            ? btoa(`${username}:${password}`)
+            : Buffer.from(`${username}:${password}`).toString('base64');
+          headers['Authorization'] = `Basic ${encoded}`;
+          break;
+        }
+        case 'oauth2': {
+          const token = auth.credentials?.token || auth.credentials?.accessToken;
+          if (token) headers['Authorization'] = `Bearer ${token}`;
+          break;
+        }
+      }
+    } catch (_) {
+      // Swallow auth header construction errors; they'll surface as request failures later
+    }
+
+    return headers;
+  }
 
   /**
    * Test a single API endpoint
@@ -263,6 +300,7 @@ class ApiTestingService {
           url: config.url,
           headers: {
             'Content-Type': 'application/json',
+            ...this.buildAuthHeaders(config),
             ...config.headers,
             ...testConfig.customHeaders,
           },
@@ -385,6 +423,245 @@ class ApiTestingService {
     const nonRetryableCodes = [400, 401, 403, 404, 405, 406, 409, 410, 422];
     return nonRetryableCodes.includes(error.response?.status || 0);
   }
+
+  /**
+   * Parse response data based on content-type header
+   */
+  private parseResponseData(response: AxiosResponse): { data: any; contentType: string; parseError?: string } {
+    const contentType = (response.headers?.['content-type'] || '').toLowerCase();
+    const rawData = response.data;
+
+    // If axios already parsed JSON, return as-is
+    if (contentType.includes('application/json')) {
+      try {
+        if (typeof rawData === 'string') {
+          return { data: JSON.parse(rawData), contentType };
+        }
+        return { data: rawData, contentType };
+      } catch (e: any) {
+        return { data: rawData, contentType, parseError: `JSON parse error: ${e?.message || 'Unknown'}` };
+      }
+    }
+
+    // XML support
+    if (contentType.includes('application/xml') || contentType.includes('text/xml')) {
+      try {
+        const text = typeof rawData === 'string' ? rawData : (rawData?.toString?.() ?? '');
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(text, 'application/xml');
+        const parseErr = doc.querySelector('parsererror');
+        if (parseErr) {
+          return { data: text, contentType, parseError: 'XML parse error' };
+        }
+        const json = this.xmlToJson(doc.documentElement);
+        return { data: json, contentType };
+      } catch (e: any) {
+        return { data: rawData, contentType, parseError: `XML parse error: ${e?.message || 'Unknown'}` };
+      }
+    }
+
+    // Fallback: text or binary
+    return { data: rawData, contentType };
+  }
+
+  /** Convert XML Element to a simple JSON structure */
+  private xmlToJson(element: Element): any {
+    const obj: any = {};
+    // Attributes
+    if (element.attributes && element.attributes.length > 0) {
+      obj['@attributes'] = {};
+      for (let i = 0; i < element.attributes.length; i++) {
+        const attr = element.attributes.item(i)!;
+        obj['@attributes'][attr.name] = attr.value;
+      }
+    }
+    // Children
+    if (element.childNodes && element.childNodes.length > 0) {
+      for (let i = 0; i < element.childNodes.length; i++) {
+        const node = element.childNodes.item(i);
+        if (node.nodeType === 1) { // ELEMENT_NODE
+          const child = node as Element;
+          const name = child.nodeName;
+          const value = this.xmlToJson(child);
+          if (obj[name] === undefined) {
+            obj[name] = value;
+          } else {
+            if (!Array.isArray(obj[name])) obj[name] = [obj[name]];
+            obj[name].push(value);
+          }
+        } else if (node.nodeType === 3) { // TEXT_NODE
+          const text = node.nodeValue?.trim();
+          if (text) {
+            obj['#text'] = text;
+          }
+        }
+      }
+    }
+    return obj;
+  }
+
+  /** Determine a normalized JS type string */
+  private getTypeOf(value: any): string {
+    if (value === null) return 'null';
+    if (Array.isArray(value)) return 'array';
+    return typeof value; // string, number, boolean, object, undefined, function, symbol, bigint
+  }
+
+  /** Get value by dot path from object */
+  private getByPath(obj: any, path: string): any {
+    const parts = path.split('.');
+    let current = obj;
+    for (const part of parts) {
+      if (current && typeof current === 'object' && part in current) {
+        current = current[part];
+      } else {
+        return undefined;
+      }
+    }
+    return current;
+  }
+
+  /** Categorize an Axios/network error */
+  private categorizeError(error: AxiosError): string {
+    if (error.code === 'ECONNABORTED' || /timeout/i.test(error.message)) return 'timeout';
+    if (error.response) {
+      const status = error.response.status;
+      if (status === 401 || status === 403) return 'auth';
+      if (status >= 500) return 'http_5xx';
+      if (status >= 400) return 'http_4xx';
+      return 'http_error';
+    }
+    if (error.request) return 'network';
+    return 'unknown';
+  }
+}
+
+// ---------------------------------------------
+// Public API requested by user
+// ---------------------------------------------
+
+export interface TestResult {
+  success: boolean;
+  responseTime: number;
+  statusCode: number;
+  data: any;
+  errors: string[];
+}
+
+export interface ValidationResult {
+  valid: boolean;
+  errors: string[];
+  missingFields: string[];
+  typeMismatches: string[];
+}
+
+/**
+ * Makes an actual HTTP request, measures response time, handles auth, retries, and categorizes errors.
+ */
+export async function testAPIConnection(
+  config: ApiConfig,
+  options: Partial<ApiTestConfig> = {}
+): Promise<TestResult> {
+  const service = apiTestingService;
+  const merged = { ...service['defaultConfig'], ...options } as ApiTestConfig;
+  const start = performance.now();
+  const errors: string[] = [];
+
+  try {
+    const response = await service['makeRequest'](config, merged);
+    const end = performance.now();
+
+    // Parse content
+    const parsed = service['parseResponseData'](response);
+
+    // Validate basic status code range
+    if (response.status < 200 || response.status >= 300) {
+      errors.push(`HTTP ${response.status}: ${response.statusText || 'Non-success status'}`);
+    }
+
+    // Content-type parse error surfaced
+    if (parsed.parseError) {
+      errors.push(parsed.parseError);
+    }
+
+    return {
+      success: errors.length === 0,
+      responseTime: end - start,
+      statusCode: response.status,
+      data: parsed.data,
+      errors,
+    };
+  } catch (e: any) {
+    const end = performance.now();
+    const err = e as AxiosError;
+    const category = apiTestingService['categorizeError'](err);
+    const message = apiTestingService['formatError'](err);
+    errors.push(`[${category}] ${message}`);
+    return {
+      success: false,
+      responseTime: end - start,
+      statusCode: err?.response?.status || 0,
+      data: null,
+      errors,
+    };
+  }
+}
+
+/**
+ * Validates that expected fields exist and that their types match expectations.
+ * Supports JSON (and XML converted to JSON structure).
+ */
+export function validateAPIResponse(response: any, expectedFields: ApiField[]): ValidationResult {
+  const errors: string[] = [];
+  const missingFields: string[] = [];
+  const typeMismatches: string[] = [];
+
+  if (!response || typeof response !== 'object') {
+    return {
+      valid: false,
+      errors: ['Response is empty or not an object'],
+      missingFields: expectedFields.map(f => f.path || f.name),
+      typeMismatches: [],
+    };
+  }
+
+  for (const field of expectedFields) {
+    const path = field.path || field.name;
+    const value = apiTestingService['getByPath'](response, path);
+    if (value === undefined) {
+      missingFields.push(path);
+      continue;
+    }
+    if (field.type) {
+      const actualType = apiTestingService['getTypeOf'](value);
+      const expectedType = (field.type || '').toLowerCase();
+      // Basic normalization: map some db-like types to js types
+      const expectedJsType = expectedType.includes('int') || expectedType.includes('decimal') || expectedType.includes('number')
+        ? 'number'
+        : expectedType.includes('bool') ? 'boolean'
+        : expectedType.includes('char') || expectedType.includes('text') || expectedType.includes('string') ? 'string'
+        : expectedType.includes('array') ? 'array'
+        : expectedType.includes('object') || expectedType.includes('json') ? 'object'
+        : expectedType;
+      if (actualType !== expectedJsType) {
+        typeMismatches.push(`${path}: expected ${expectedJsType}, got ${actualType}`);
+      }
+    }
+  }
+
+  if (missingFields.length > 0) {
+    errors.push(`Missing fields: ${missingFields.join(', ')}`);
+  }
+  if (typeMismatches.length > 0) {
+    errors.push(`Type mismatches: ${typeMismatches.join('; ')}`);
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+    missingFields,
+    typeMismatches,
+  };
 }
 
 export const apiTestingService = new ApiTestingService();

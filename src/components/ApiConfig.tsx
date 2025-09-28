@@ -23,7 +23,7 @@ import type { ApiConfig, AuthConfig, ApiField } from '../types';
 import ApiUrlInput from './ApiUrlInput';
 import AuthConfigComponent from './AuthConfig';
 import FieldExtractor from './FieldExtractor';
-import axios from 'axios';
+import { testAPIConnection, validateAPIResponse } from '../services/apiTestingService';
 
 const ApiConfigPage: React.FC = () => {
   const { state, setApiConfig, setError } = useAppContext();
@@ -40,7 +40,9 @@ const ApiConfigPage: React.FC = () => {
   const [apiError, setApiError] = useState<string | null>(null);
   const [responseStatus, setResponseStatus] = useState<number | null>(null);
   const [responseTime, setResponseTime] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState(0);
+  const [activeTab, setActiveTab] = useState(1); // 0=Request, 1=Response, 2=Fields
+  const [requestPreview, setRequestPreview] = useState<{ method: string; url: string; headers: Record<string, string> } | null>(null);
+  const [validationSummary, setValidationSummary] = useState<{ missing: string[]; mismatches: string[] } | null>(null);
   
   // Field extraction state
   const [extractedFields, setExtractedFields] = useState<ApiField[]>([]);
@@ -125,79 +127,47 @@ const ApiConfigPage: React.FC = () => {
     setApiResponse(null);
     setResponseStatus(null);
     setResponseTime(null);
+    setValidationSummary(null);
 
-    const startTime = Date.now();
+    // Parse headers for preview and config
+    let parsedHeaders: Record<string, string> = {};
+    try {
+      parsedHeaders = JSON.parse(headers || '{}');
+    } catch (error) {
+      setApiError('Invalid JSON format for headers');
+      setIsTestingApi(false);
+      return;
+    }
+
+    // Build request preview
+    setRequestPreview({ method: httpMethod, url: apiUrl, headers: parsedHeaders });
 
     try {
-      // Parse headers
-      let parsedHeaders: Record<string, string> = {};
-      try {
-        parsedHeaders = JSON.parse(headers || '{}');
-      } catch (error) {
-        setApiError('Invalid JSON format for headers');
-        setIsTestingApi(false);
-        return;
-      }
-
-      // Prepare request configuration
-      const requestConfig: any = {
-        method: httpMethod.toLowerCase(),
-        url: apiUrl,
-        headers: {
-          'Content-Type': 'application/json',
-          ...parsedHeaders,
+      const result = await testAPIConnection(
+        {
+          url: apiUrl,
+          method: httpMethod,
+          authentication: authConfig,
+          headers: parsedHeaders,
         },
-        timeout: 10000, // 10 second timeout
-      };
+        { timeout: 10000, retries: 2 }
+      );
 
-      // Add authentication if configured
-      if (authConfig.type !== 'none' && authConfig.credentials) {
-        switch (authConfig.type) {
-          case 'bearer':
-            requestConfig.headers.Authorization = `Bearer ${authConfig.credentials.token}`;
-            break;
-          case 'basic':
-            const credentials = btoa(`${authConfig.credentials.username}:${authConfig.credentials.password}`);
-            requestConfig.headers.Authorization = `Basic ${credentials}`;
-            break;
-          case 'oauth2':
-            // For OAuth2, you would typically get a token first
-            if (authConfig.credentials.token) {
-              requestConfig.headers.Authorization = `Bearer ${authConfig.credentials.token}`;
-            }
-            break;
-        }
+      setApiResponse(result.data);
+      setResponseStatus(result.statusCode);
+      setResponseTime(Math.round(result.responseTime));
+      setApiError(result.errors && result.errors.length > 0 ? result.errors.join('\n') : null);
+
+      // Validate against selected expected fields
+      const expected = extractedFields.filter(f => selectedFields[f.path] === true);
+      if (expected.length > 0 && result.data) {
+        const v = validateAPIResponse(result.data, expected);
+        setValidationSummary({ missing: v.missingFields, mismatches: v.typeMismatches });
       }
 
-      // Make the API request
-      const response = await axios(requestConfig);
-      const endTime = Date.now();
-      
-      setApiResponse(response.data);
-      setResponseStatus(response.status);
-      setResponseTime(endTime - startTime);
-      
-      // Automatically extract fields from response
-      if (response.data) {
-        // Fields will be automatically extracted by the FieldExtractor component
-        // when it receives the apiResponse data
-      }
-
-      setActiveTab(1); // Switch to response tab
-      
+      setActiveTab(1); // Response tab
     } catch (error: any) {
-      const endTime = Date.now();
-      setResponseTime(endTime - startTime);
-      
-      if (error.response) {
-        setApiError(`API Error: ${error.response.status} - ${error.response.statusText}`);
-        setResponseStatus(error.response.status);
-        setApiResponse(error.response.data);
-      } else if (error.request) {
-        setApiError('Network Error: Unable to reach the API endpoint');
-      } else {
-        setApiError(`Request Error: ${error.message}`);
-      }
+      setApiError(error?.message || 'Unknown error during API test');
     } finally {
       setIsTestingApi(false);
     }
@@ -342,6 +312,10 @@ const ApiConfigPage: React.FC = () => {
                     sx={{ minHeight: 'auto', mb: 1 }}
                   >
                     <Tab 
+                      label="Request" 
+                      sx={{ fontSize: '0.75rem', minHeight: 'auto', py: 0.5 }}
+                    />
+                    <Tab 
                       label="Response" 
                       sx={{ fontSize: '0.75rem', minHeight: 'auto', py: 0.5 }}
                     />
@@ -351,7 +325,7 @@ const ApiConfigPage: React.FC = () => {
                     />
                   </Tabs>
 
-                  {activeTab === 0 && (
+                  {activeTab === 1 && (
                     <Box sx={{ 
                       maxHeight: 200, 
                       overflow: 'auto',
@@ -378,7 +352,7 @@ const ApiConfigPage: React.FC = () => {
                     </Box>
                   )}
 
-                  {activeTab === 1 && (
+                  {activeTab === 2 && (
                     <Box sx={{ 
                       maxHeight: 200, 
                       overflow: 'auto',
@@ -395,13 +369,34 @@ const ApiConfigPage: React.FC = () => {
                       />
                     </Box>
                   )}
+
+                  {activeTab === 0 && requestPreview && (
+                    <Box sx={{ 
+                      maxHeight: 200, 
+                      overflow: 'auto',
+                      backgroundColor: 'grey.50',
+                      p: 1,
+                      borderRadius: 1,
+                      border: '1px solid #e0e0e0'
+                    }}>
+                      <pre style={{ 
+                        margin: 0, 
+                        fontSize: '0.75rem',
+                        fontFamily: 'monospace',
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word'
+                      }}>
+{`Method: ${requestPreview.method}\nURL: ${requestPreview.url}\nHeaders: ${JSON.stringify(requestPreview.headers, null, 2)}`}
+                      </pre>
+                    </Box>
+                  )}
                 </CardContent>
               </Card>
             )}
           </Box>
         </Box>
 
-        {/* Selected Fields Summary */}
+        {/* Selected Fields Summary and Validation */}
         {extractedFields.length > 0 && (
           <Card sx={{ mb: 2 }}>
             <CardContent sx={{ p: 1.5 }}>
@@ -426,6 +421,21 @@ const ApiConfigPage: React.FC = () => {
                 <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>
                   No fields selected. Select fields in the tree view above to include them in the mapping.
                 </Typography>
+              )}
+
+              {validationSummary && (
+                <Box sx={{ mt: 1.5, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  {validationSummary.missing.length > 0 && (
+                    <Alert severity="error" sx={{ fontSize: '0.75rem' }}>
+                      Missing fields: {validationSummary.missing.join(', ')}
+                    </Alert>
+                  )}
+                  {validationSummary.mismatches.length > 0 && (
+                    <Alert severity="warning" sx={{ fontSize: '0.75rem' }}>
+                      Type mismatches: {validationSummary.mismatches.join('; ')}
+                    </Alert>
+                  )}
+                </Box>
               )}
             </CardContent>
           </Card>
