@@ -322,15 +322,15 @@ export function validateMapping(mapping: FieldMapping): ValidationResult {
 export function validateAllMappings(mappings: FieldMapping[]): ValidationSummary {
   if (mappings.length === 0) {
     return {
-      status: 'valid',
+      status: 'warning',
       totalMappings: 0,
       validMappings: 0,
       warningMappings: 0,
       errorMappings: 0,
-      overallScore: 100,
+      overallScore: 0,
       errors: [],
-      warnings: [],
-      suggestions: [],
+      warnings: ['No mappings to validate'],
+      suggestions: ['Add field mappings to validate compatibility and constraints'],
       criticalIssues: [],
       fixableIssues: [],
     };

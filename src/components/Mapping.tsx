@@ -8,7 +8,7 @@ import SimpleFieldMapping from './SimpleFieldMapping';
 import type { FieldMapping as FieldMappingType, DatabaseColumn, ApiField } from '../types';
 
 const MappingPage: React.FC = () => {
-  const { state } = useAppContext();
+  const { state, setFieldMappings } = useAppContext();
   const [mappings, setMappings] = useState<FieldMappingType[]>([]);
   const [apiFields, setApiFields] = useState<any[]>([]);
   const [databaseFields, setDatabaseFields] = useState<DatabaseColumn[]>([]);
@@ -54,6 +54,7 @@ const MappingPage: React.FC = () => {
 
   const handleMappingChange = (newMappings: FieldMappingType[]) => {
     setMappings(newMappings);
+    setFieldMappings(newMappings);
   };
 
 
