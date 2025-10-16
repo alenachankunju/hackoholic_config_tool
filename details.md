@@ -23,3 +23,5 @@ https://fr24api.flightradar24.com/api/static/airlines/SAS/light
    }
 
 https://hackoholic-config-tool-1.onrender.com
+
+C:\Users\bfs.hackoholics\hackoholic_config_tool>
