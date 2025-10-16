@@ -66,7 +66,7 @@ const HomePage: React.FC = () => {
               fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' }
             }}
           >
-            Hackoholics Config Dashboard
+            Hackoholics - API Mapping Dashboard
           </Typography>
           
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>

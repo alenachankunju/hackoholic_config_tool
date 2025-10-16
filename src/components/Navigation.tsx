@@ -102,7 +102,7 @@ const Navigation: React.FC = () => {
             }}
             onClick={() => navigate('/')}
           >
-            Hackoholics Config Tool
+            Hackoholics - API Mapping Dashboard
           </Typography>
           
           {isMobile ? (
