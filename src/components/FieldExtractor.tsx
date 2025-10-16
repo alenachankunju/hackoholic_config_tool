@@ -344,7 +344,14 @@ const FieldExtractor: React.FC<FieldExtractorProps> = ({
         startIcon={<TreeIcon />}
         sx={{ 
           fontSize: '0.8rem',
-          py: 1
+          py: 1,
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          '&:hover': {
+            background: 'linear-gradient(135deg, #5568d3 0%, #653a8a 100%)',
+          },
+          '&:disabled': {
+            background: 'rgba(0, 0, 0, 0.12)',
+          },
         }}
       >
         {isExtracting ? 'Extracting...' : 'Extract Fields'}

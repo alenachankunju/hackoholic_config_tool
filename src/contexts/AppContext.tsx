@@ -18,6 +18,8 @@ const initialState: AppState = {
   testResults: [],
   isLoading: false,
   error: null,
+  isAuthenticated: false,
+  user: null,
 };
 
 // Reducer
@@ -41,6 +43,10 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
       return { ...state, error: action.payload, isLoading: false };
     case 'RESET_STATE':
       return initialState;
+    case 'LOGIN':
+      return { ...state, isAuthenticated: true, user: action.payload };
+    case 'LOGOUT':
+      return { ...initialState };
     default:
       return state;
   }
@@ -60,6 +66,8 @@ interface AppContextType {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   resetState: () => void;
+  login: (username: string) => void;
+  logout: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -70,7 +78,15 @@ interface AppProviderProps {
 }
 
 export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
-  const [state, dispatch] = useReducer(appReducer, initialState);
+  const [state, dispatch] = useReducer(appReducer, initialState, (initial) => {
+    // Check for existing authentication in localStorage
+    const storedAuth = localStorage.getItem('isAuthenticated');
+    const storedUser = localStorage.getItem('user');
+    if (storedAuth === 'true' && storedUser) {
+      return { ...initial, isAuthenticated: true, user: storedUser };
+    }
+    return initial;
+  });
 
   // Helper functions
   const setApiConfig = (config: ApiConfig) => {
@@ -109,6 +125,18 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     dispatch({ type: 'RESET_STATE' });
   };
 
+  const login = (username: string) => {
+    localStorage.setItem('isAuthenticated', 'true');
+    localStorage.setItem('user', username);
+    dispatch({ type: 'LOGIN', payload: username });
+  };
+
+  const logout = () => {
+    localStorage.removeItem('isAuthenticated');
+    localStorage.removeItem('user');
+    dispatch({ type: 'LOGOUT' });
+  };
+
   const value: AppContextType = {
     state,
     dispatch,
@@ -121,6 +149,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     setLoading,
     setError,
     resetState,
+    login,
+    logout,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

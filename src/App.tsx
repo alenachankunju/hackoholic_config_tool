@@ -1,9 +1,10 @@
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { Box } from '@mui/material';
-import { AppProvider } from './contexts/AppContext';
+import { AppProvider, useAppContext } from './contexts/AppContext';
 import { DragDropProvider } from './contexts/DragDropContext';
 import Home from './components/Home';
+import Login from './components/Login';
 
 const theme = createTheme({
   palette: {
@@ -29,22 +30,38 @@ const theme = createTheme({
   },
 });
 
+function AppContent() {
+  const { state, login } = useAppContext();
+
+  const handleLogin = (username: string, _password: string) => {
+    login(username);
+  };
+
+  if (!state.isAuthenticated) {
+    return <Login onLogin={handleLogin} />;
+  }
+
+  return (
+    <DragDropProvider>
+      <Box sx={{ 
+        width: '100vw',
+        height: '100vh',
+        margin: 0,
+        padding: 0,
+        overflow: 'hidden'
+      }}>
+        <Home />
+      </Box>
+    </DragDropProvider>
+  );
+}
+
 function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <AppProvider>
-        <DragDropProvider>
-          <Box sx={{ 
-            width: '100vw',
-            height: '100vh',
-            margin: 0,
-            padding: 0,
-            overflow: 'hidden'
-          }}>
-            <Home />
-          </Box>
-        </DragDropProvider>
+        <AppContent />
       </AppProvider>
     </ThemeProvider>
   );

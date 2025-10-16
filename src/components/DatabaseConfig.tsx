@@ -197,7 +197,18 @@ const DatabaseConfigPage: React.FC = () => {
                 startIcon={<CodeIcon />}
                 onClick={() => setIsQueryModalOpen(true)}
                 disabled={state.isLoading}
-                sx={{ fontSize: '0.75rem', py: 0.5, px: 1 }}
+                sx={{ 
+                  fontSize: '0.75rem', 
+                  py: 0.5, 
+                  px: 1,
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #5568d3 0%, #653a8a 100%)',
+                  },
+                  '&:disabled': {
+                    background: 'rgba(0, 0, 0, 0.12)',
+                  },
+                }}
               >
                 Query Editor
               </Button>
@@ -226,7 +237,6 @@ const DatabaseConfigPage: React.FC = () => {
         }}>
           <Button
             variant="contained"
-            color="primary"
             size="small"
             onClick={onSubmit}
             disabled={state.isLoading || !connectionConfig.host || !connectionConfig.database}
@@ -234,6 +244,13 @@ const DatabaseConfigPage: React.FC = () => {
               width: { xs: '100%', sm: 'auto' },
               minWidth: { xs: 'auto', sm: '80px' },
               fontSize: '0.75rem',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #5568d3 0%, #653a8a 100%)',
+              },
+              '&:disabled': {
+                background: 'rgba(0, 0, 0, 0.12)',
+              },
               py: 0.5
             }}
           >

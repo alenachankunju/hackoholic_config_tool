@@ -54,6 +54,55 @@ interface QueryResult {
   rowCount?: number;
 }
 
+// Helper function to format cell values for better display
+const formatCellValue = (value: any): string => {
+  if (value === null || value === undefined) {
+    return '(null)';
+  }
+  
+  // Format dates
+  if (value instanceof Date) {
+    return value.toLocaleString();
+  }
+  
+  // Check if it's an ISO date string
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
+    try {
+      const date = new Date(value);
+      return date.toLocaleString();
+    } catch {
+      return value;
+    }
+  }
+  
+  // Format numbers with decimals
+  if (typeof value === 'number') {
+    return Number.isInteger(value) ? value.toString() : value.toFixed(2);
+  }
+  
+  // Format booleans
+  if (typeof value === 'boolean') {
+    return value ? 'true' : 'false';
+  }
+  
+  // Format objects/arrays
+  if (typeof value === 'object') {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  }
+  
+  // Truncate very long strings
+  const strValue = String(value);
+  if (strValue.length > 100) {
+    return strValue.substring(0, 100) + '...';
+  }
+  
+  return strValue;
+};
+
 const DatabaseQueryModal: React.FC<DatabaseQueryModalProps> = ({
   open,
   onClose,
@@ -64,6 +113,7 @@ const DatabaseQueryModal: React.FC<DatabaseQueryModalProps> = ({
   const [isExecuting, setIsExecuting] = useState(false);
   const [result, setResult] = useState<QueryResult | null>(null);
   const [queryHistory, setQueryHistory] = useState<string[]>([]);
+  const [showFullResults, setShowFullResults] = useState(false);
 
   // Sample queries for different database types
   const getSampleQueries = () => {
@@ -121,6 +171,10 @@ const DatabaseQueryModal: React.FC<DatabaseQueryModalProps> = ({
       const queryResult = await databaseService.executeQuery(config, query);
       const executionTime = Date.now() - startTime;
 
+      console.log('Query result received:', queryResult);
+      console.log('Data length:', queryResult.data?.length);
+      console.log('First row:', queryResult.data?.[0]);
+
       const result: QueryResult = {
         success: true,
         data: queryResult.data,
@@ -129,7 +183,13 @@ const DatabaseQueryModal: React.FC<DatabaseQueryModalProps> = ({
         rowCount: queryResult.rowCount
       };
 
+      console.log('Final result object:', result);
       setResult(result);
+      
+      // Show full results view when query executes successfully
+      if (result.success && result.data && result.data.length > 0) {
+        setShowFullResults(true);
+      }
     } catch (error) {
       const executionTime = Date.now() - startTime;
       setResult({
@@ -156,6 +216,12 @@ const DatabaseQueryModal: React.FC<DatabaseQueryModalProps> = ({
   const clearQuery = () => {
     setQuery('');
     setResult(null);
+    setShowFullResults(false);
+  };
+
+  // Go back to query editor
+  const goBackToEditor = () => {
+    setShowFullResults(false);
   };
 
   // Download results as CSV
@@ -193,10 +259,17 @@ const DatabaseQueryModal: React.FC<DatabaseQueryModalProps> = ({
     <Dialog
       open={open}
       onClose={onClose}
-      maxWidth="lg"
+      maxWidth={false}
       fullWidth
       PaperProps={{
-        sx: { height: '90vh' }
+        sx: { 
+          height: '95vh',
+          width: '95vw',
+          maxWidth: showFullResults ? '95vw' : '1400px',
+          margin: 'auto',
+          display: 'flex',
+          flexDirection: 'column'
+        }
       }}
     >
       <DialogTitle sx={{ 
@@ -222,9 +295,54 @@ const DatabaseQueryModal: React.FC<DatabaseQueryModalProps> = ({
         </IconButton>
       </DialogTitle>
 
-      <DialogContent sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {/* Connection Info */}
-        <Card>
+      <DialogContent sx={{ 
+        p: showFullResults ? 1 : 2, 
+        display: 'flex', 
+        flexDirection: 'column', 
+        gap: showFullResults ? 1 : 2,
+        overflow: 'auto',
+        flex: 1,
+        height: 'calc(90vh - 100px)',
+        '&::-webkit-scrollbar': {
+          width: '12px',
+        },
+        '&::-webkit-scrollbar-track': {
+          background: '#f1f1f1',
+          borderRadius: '6px',
+        },
+        '&::-webkit-scrollbar-thumb': {
+          background: '#1976d2',
+          borderRadius: '6px',
+          '&:hover': {
+            background: '#1565c0',
+          },
+        },
+      }}>
+        {!showFullResults && (
+          /* Scroll Indicator */
+          <Box sx={{ 
+            position: 'sticky', 
+            top: 0, 
+            zIndex: 10, 
+            backgroundColor: '#e3f2fd', 
+            p: 1, 
+            borderRadius: 1, 
+            mb: 1,
+            textAlign: 'center'
+          }}>
+            <Typography variant="caption" sx={{ 
+              fontSize: '0.7rem', 
+              color: '#1976d2',
+              fontWeight: 'bold'
+            }}>
+              📜 Scroll down to see all sections: Query Input → Sample Queries → History → Results
+            </Typography>
+          </Box>
+        )}
+        {!showFullResults ? (
+          <>
+            {/* Connection Info */}
+            <Card>
           <CardContent sx={{ p: 1.5 }}>
             <Typography variant="subtitle2" sx={{ fontSize: '0.8rem', fontWeight: 'bold', mb: 1 }}>
               Connection: {config.host}:{config.port}/{config.database}
@@ -243,7 +361,7 @@ const DatabaseQueryModal: React.FC<DatabaseQueryModalProps> = ({
           <TextField
             fullWidth
             multiline
-            rows={6}
+            rows={4}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Enter your SQL query here..."
@@ -266,8 +384,8 @@ const DatabaseQueryModal: React.FC<DatabaseQueryModalProps> = ({
                 Sample Queries ({sampleQueries.length})
               </Typography>
             </AccordionSummary>
-            <AccordionDetails>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <AccordionDetails sx={{ maxHeight: 200, overflow: 'auto' }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                 {sampleQueries.map((sampleQuery, index) => (
                   <Button
                     key={index}
@@ -282,7 +400,8 @@ const DatabaseQueryModal: React.FC<DatabaseQueryModalProps> = ({
                       fontFamily: 'monospace',
                       whiteSpace: 'pre-wrap',
                       height: 'auto',
-                      py: 1
+                      py: 0.5,
+                      minHeight: 'auto'
                     }}
                   >
                     {sampleQuery}
@@ -301,8 +420,8 @@ const DatabaseQueryModal: React.FC<DatabaseQueryModalProps> = ({
                 Query History ({queryHistory.length})
               </Typography>
             </AccordionSummary>
-            <AccordionDetails>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <AccordionDetails sx={{ maxHeight: 200, overflow: 'auto' }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                 {queryHistory.map((historyQuery, index) => (
                   <Button
                     key={index}
@@ -318,8 +437,9 @@ const DatabaseQueryModal: React.FC<DatabaseQueryModalProps> = ({
                       whiteSpace: 'pre-wrap',
                       height: 'auto',
                       py: 0.5,
-                      maxHeight: 100,
-                      overflow: 'hidden'
+                      maxHeight: 60,
+                      overflow: 'hidden',
+                      minHeight: 'auto'
                     }}
                   >
                     {historyQuery.length > 100 ? `${historyQuery.substring(0, 100)}...` : historyQuery}
@@ -338,7 +458,16 @@ const DatabaseQueryModal: React.FC<DatabaseQueryModalProps> = ({
             startIcon={isExecuting ? <CircularProgress size={16} /> : <PlayIcon />}
             onClick={executeQuery}
             disabled={disabled || isExecuting || !query.trim()}
-            sx={{ fontSize: '0.75rem' }}
+            sx={{ 
+              fontSize: '0.75rem',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #5568d3 0%, #653a8a 100%)',
+              },
+              '&:disabled': {
+                background: 'rgba(0, 0, 0, 0.12)',
+              },
+            }}
           >
             {isExecuting ? 'Executing...' : 'Execute Query'}
           </Button>
@@ -362,6 +491,25 @@ const DatabaseQueryModal: React.FC<DatabaseQueryModalProps> = ({
               sx={{ fontSize: '0.75rem' }}
             >
               Download CSV
+            </Button>
+          )}
+          {result?.success && result.data && result.data.length > 0 && (
+            <Button
+              variant="contained"
+              size="small"
+              color="secondary"
+              onClick={() => {
+                const resultsElement = document.querySelector('[data-testid="query-results"]');
+                if (resultsElement) {
+                  resultsElement.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'start' 
+                  });
+                }
+              }}
+              sx={{ fontSize: '0.75rem' }}
+            >
+              📊 View Results
             </Button>
           )}
         </Box>
@@ -404,41 +552,126 @@ const DatabaseQueryModal: React.FC<DatabaseQueryModalProps> = ({
               )}
 
               {result.success && result.data && result.data.length > 0 && (
-                <Box>
-                  <Typography variant="subtitle2" sx={{ fontSize: '0.8rem', fontWeight: 'bold', mb: 1 }}>
-                    Query Results
-                  </Typography>
-                  <TableContainer component={Paper} sx={{ maxHeight: 400, overflow: 'auto' }}>
+                <Box data-testid="query-results">
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                    <Typography variant="subtitle2" sx={{ fontSize: '0.8rem', fontWeight: 'bold' }}>
+                      Query Results ({result.data.length} rows)
+                    </Typography>
+                    {result.data.length > 10 && (
+                      <Chip 
+                        label="Scroll to see all data" 
+                        size="small" 
+                        color="primary"
+                        variant="outlined"
+                        sx={{ fontSize: '0.6rem', height: 18 }}
+                      />
+                    )}
+                  </Box>
+                  <TableContainer 
+                    component={Paper} 
+                    sx={{ 
+                      maxHeight: 350, 
+                      overflow: 'auto',
+                      border: '2px solid #1976d2',
+                      borderRadius: 2,
+                      boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+                      '&::-webkit-scrollbar': {
+                        width: '12px',
+                        height: '12px',
+                      },
+                      '&::-webkit-scrollbar-track': {
+                        background: '#f1f1f1',
+                        borderRadius: '6px',
+                      },
+                      '&::-webkit-scrollbar-thumb': {
+                        background: '#1976d2',
+                        borderRadius: '6px',
+                        '&:hover': {
+                          background: '#1565c0',
+                        },
+                      },
+                    }}
+                  >
                     <Table size="small" stickyHeader>
                       <TableHead>
                         <TableRow>
                           {result.columns?.map((column, index) => (
-                            <TableCell key={index} sx={{ 
-                              fontSize: '0.7rem', 
-                              fontWeight: 'bold',
-                              backgroundColor: 'grey.100'
-                            }}>
+                            <TableCell 
+                              key={index} 
+                              sx={{ 
+                                fontSize: '0.75rem', 
+                                fontWeight: 'bold',
+                                backgroundColor: '#f5f5f5',
+                                borderBottom: '2px solid #ddd',
+                                whiteSpace: 'nowrap',
+                                minWidth: 100,
+                                maxWidth: 300,
+                                position: 'sticky',
+                                top: 0,
+                                zIndex: 1
+                              }}
+                            >
                               {column}
                             </TableCell>
                           ))}
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {result.data.slice(0, 100).map((row, rowIndex) => (
-                          <TableRow key={rowIndex}>
-                            {result.columns?.map((column, colIndex) => (
-                              <TableCell key={colIndex} sx={{ fontSize: '0.7rem' }}>
-                                {row[column]?.toString() || ''}
-                              </TableCell>
-                            ))}
-                          </TableRow>
-                        ))}
+                        {result.data.slice(0, 100).map((row, rowIndex) => {
+                          console.log(`Rendering row ${rowIndex}:`, row);
+                          return (
+                            <TableRow 
+                              key={rowIndex}
+                              sx={{
+                                '&:nth-of-type(odd)': {
+                                  backgroundColor: 'rgba(0, 0, 0, 0.02)',
+                                },
+                                '&:hover': {
+                                  backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                                },
+                              }}
+                            >
+                              {result.columns?.map((column, colIndex) => {
+                                console.log(`Rendering cell ${colIndex} (${column}):`, row[column]);
+                                return (
+                                  <TableCell 
+                                    key={colIndex} 
+                                    sx={{ 
+                                      fontSize: '0.75rem',
+                                      minWidth: 100,
+                                      maxWidth: 300,
+                                      whiteSpace: 'nowrap',
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                      fontFamily: 'monospace',
+                                      padding: '8px 12px',
+                                    }}
+                                    title={row[column]?.toString() || ''}
+                                  >
+                                    {formatCellValue(row[column])}
+                                  </TableCell>
+                                );
+                              })}
+                            </TableRow>
+                          );
+                        })}
                       </TableBody>
                     </Table>
                   </TableContainer>
                   {result.data.length > 100 && (
                     <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'text.secondary', mt: 1, display: 'block' }}>
                       Showing first 100 rows of {result.data.length} total rows
+                    </Typography>
+                  )}
+                  {result.data.length > 0 && (
+                    <Typography variant="caption" sx={{ 
+                      fontSize: '0.7rem', 
+                      color: '#1976d2', 
+                      mt: 1, 
+                      display: 'block',
+                      fontStyle: 'italic'
+                    }}>
+                      💡 Tip: Use mouse wheel or scrollbar to view all data
                     </Typography>
                   )}
                 </Box>
@@ -452,17 +685,190 @@ const DatabaseQueryModal: React.FC<DatabaseQueryModalProps> = ({
             </CardContent>
           </Card>
         )}
+        </>
+        ) : (
+          /* Full Results View */
+          <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            {/* Results Header */}
+            <Box sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between',
+              mb: 2,
+              p: 2,
+              backgroundColor: '#f5f5f5',
+              borderRadius: 1
+            }}>
+              <Box>
+                <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 'bold' }}>
+                  Query Results ({result?.data?.length || 0} rows)
+                </Typography>
+                <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>
+                  Execution time: {result?.executionTime}ms
+                </Typography>
+              </Box>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={goBackToEditor}
+                  sx={{ 
+                    fontSize: '0.75rem',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    '&:hover': {
+                      background: 'linear-gradient(135deg, #5568d3 0%, #653a8a 100%)',
+                    },
+                  }}
+                >
+                  ← Back to Query Editor
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={downloadResults}
+                  disabled={!result?.data || result.data.length === 0}
+                  sx={{ fontSize: '0.75rem' }}
+                >
+                  📥 Download CSV
+                </Button>
+              </Box>
+            </Box>
+
+            {/* Full Results Table */}
+            {result?.success && result.data && result.data.length > 0 && (
+              <TableContainer 
+                component={Paper} 
+                sx={{ 
+                  flex: 1,
+                  overflow: 'auto',
+                  border: '2px solid #1976d2',
+                  borderRadius: 2,
+                  boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+                  '&::-webkit-scrollbar': {
+                    width: '12px',
+                    height: '12px',
+                  },
+                  '&::-webkit-scrollbar-track': {
+                    background: '#f1f1f1',
+                    borderRadius: '6px',
+                  },
+                  '&::-webkit-scrollbar-thumb': {
+                    background: '#1976d2',
+                    borderRadius: '6px',
+                    '&:hover': {
+                      background: '#1565c0',
+                    },
+                  },
+                }}
+              >
+                <Table size="small" stickyHeader>
+                  <TableHead>
+                    <TableRow>
+                      {result.columns?.map((column, index) => (
+                        <TableCell 
+                          key={index} 
+                          sx={{ 
+                            fontSize: '0.8rem', 
+                            fontWeight: 'bold',
+                            backgroundColor: '#f5f5f5',
+                            borderBottom: '2px solid #ddd',
+                            whiteSpace: 'nowrap',
+                            minWidth: 120,
+                            position: 'sticky',
+                            top: 0,
+                            zIndex: 1
+                          }}
+                        >
+                          {column}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {result.data.map((row, rowIndex) => (
+                      <TableRow 
+                        key={rowIndex}
+                        sx={{
+                          '&:nth-of-type(odd)': {
+                            backgroundColor: 'rgba(0, 0, 0, 0.02)',
+                          },
+                          '&:hover': {
+                            backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                          },
+                        }}
+                      >
+                        {result.columns?.map((column, colIndex) => (
+                          <TableCell 
+                            key={colIndex} 
+                            sx={{ 
+                              fontSize: '0.8rem',
+                              minWidth: 120,
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              fontFamily: 'monospace',
+                              padding: '8px 12px',
+                            }}
+                            title={row[column]?.toString() || ''}
+                          >
+                            {formatCellValue(row[column])}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+
+            {result?.success && (!result.data || result.data.length === 0) && (
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                height: '200px',
+                backgroundColor: '#f5f5f5',
+                borderRadius: 1
+              }}>
+                <Typography variant="body1" sx={{ fontSize: '1rem', color: 'text.secondary' }}>
+                  Query executed successfully with no results.
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        )}
       </DialogContent>
 
-      <DialogActions sx={{ p: 2, pt: 0 }}>
-        <Button
-          onClick={onClose}
-          variant="outlined"
-          size="small"
-          sx={{ fontSize: '0.75rem' }}
-        >
-          Close
-        </Button>
+      <DialogActions sx={{ 
+        p: 2, 
+        pt: 0,
+        flexShrink: 0
+      }}>
+        {showFullResults ? (
+          <Button
+            onClick={goBackToEditor}
+            variant="contained"
+            size="small"
+            sx={{ 
+              fontSize: '0.75rem',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #5568d3 0%, #653a8a 100%)',
+              },
+            }}
+          >
+            ← Back to Query Editor
+          </Button>
+        ) : (
+          <Button
+            onClick={onClose}
+            variant="outlined"
+            size="small"
+            sx={{ fontSize: '0.75rem' }}
+          >
+            Close
+          </Button>
+        )}
       </DialogActions>
     </Dialog>
   );

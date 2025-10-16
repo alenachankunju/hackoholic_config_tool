@@ -13,7 +13,9 @@ import {
   useTheme,
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
+import LogoutIcon from '@mui/icons-material/Logout';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAppContext } from '../contexts/AppContext';
 import type { NavItem } from '../types';
 
 const Navigation: React.FC = () => {
@@ -22,6 +24,7 @@ const Navigation: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { logout } = useAppContext();
 
   const navItems: NavItem[] = [
     { label: 'API Config', path: '/api-config' },
@@ -37,6 +40,11 @@ const Navigation: React.FC = () => {
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
   };
 
   const drawer = (
@@ -61,6 +69,23 @@ const Navigation: React.FC = () => {
             </Button>
           </ListItem>
         ))}
+        <ListItem disablePadding>
+          <Button
+            fullWidth
+            color="inherit"
+            onClick={handleLogout}
+            startIcon={<LogoutIcon />}
+            sx={{
+              py: 2,
+              '&:hover': {
+                backgroundColor: 'rgba(220, 0, 78, 0.1)',
+              },
+              textAlign: 'center',
+            }}
+          >
+            Logout
+          </Button>
+        </ListItem>
       </List>
     </Box>
   );
@@ -72,7 +97,6 @@ const Navigation: React.FC = () => {
             variant="h6"
             component="div"
             sx={{ 
-              flexGrow: 1, 
               cursor: 'pointer',
               fontSize: { xs: '1rem', sm: '1.25rem' }
             }}
@@ -82,34 +106,54 @@ const Navigation: React.FC = () => {
           </Typography>
           
           {isMobile ? (
-            <IconButton
-              color="inherit"
-              aria-label="open drawer"
-              edge="start"
-              onClick={handleDrawerToggle}
-            >
-              <MenuIcon />
-            </IconButton>
-          ) : (
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              {navItems.map((item) => (
-                <Button
-                  key={item.path}
-                  color="inherit"
-                  onClick={() => handleNavigation(item.path)}
-                  sx={{
-                    backgroundColor: location.pathname === item.path ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
-                    '&:hover': {
-                      backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                    },
-                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                    px: { xs: 1, sm: 2 },
-                  }}
-                >
-                  {item.label}
-                </Button>
-              ))}
+            <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'flex-end' }}>
+              <IconButton
+                color="inherit"
+                aria-label="open drawer"
+                edge="end"
+                onClick={handleDrawerToggle}
+              >
+                <MenuIcon />
+              </IconButton>
             </Box>
+          ) : (
+            <>
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', ml: 4 }}>
+                {navItems.map((item) => (
+                  <Button
+                    key={item.path}
+                    color="inherit"
+                    onClick={() => handleNavigation(item.path)}
+                    sx={{
+                      backgroundColor: location.pathname === item.path ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
+                      '&:hover': {
+                        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                      },
+                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                      px: { xs: 1, sm: 2 },
+                    }}
+                  >
+                    {item.label}
+                  </Button>
+                ))}
+              </Box>
+              <Box sx={{ flexGrow: 1 }} />
+              <Button
+                color="inherit"
+                onClick={handleLogout}
+                startIcon={<LogoutIcon />}
+                sx={{
+                  backgroundColor: 'transparent',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  },
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                  px: { xs: 1, sm: 2 },
+                }}
+              >
+                Logout
+              </Button>
+            </>
           )}
         </Toolbar>
       

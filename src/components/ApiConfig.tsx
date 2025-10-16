@@ -24,6 +24,7 @@ import ApiUrlInput from './ApiUrlInput';
 import AuthConfigComponent from './AuthConfig';
 import FieldExtractor from './FieldExtractor';
 import { testAPIConnection, validateAPIResponse } from '../services/apiTestingService';
+import { flattenFields } from '../utils/fieldExtractor';
 
 const ApiConfigPage: React.FC = () => {
   const { state, setApiConfig, setError } = useAppContext();
@@ -69,14 +70,20 @@ const ApiConfigPage: React.FC = () => {
       }
 
       // Get selected fields from extracted fields
-      console.log('All extracted fields:', extractedFields);
+      console.log('All extracted fields (hierarchical):', extractedFields);
       console.log('Selected fields state:', selectedFields);
       
-      const selectedApiFields = extractedFields.filter(field => 
+      // Flatten the hierarchical field structure to get ALL fields including nested ones
+      const allFlattenedFields = flattenFields(extractedFields);
+      console.log('All flattened fields:', allFlattenedFields);
+      
+      // Filter to only include fields that were selected
+      const selectedApiFields = allFlattenedFields.filter(field => 
         selectedFields[field.path] === true
       );
       
-      console.log('Filtered selected fields:', selectedApiFields);
+      console.log('✅ Filtered selected fields (including array items):', selectedApiFields);
+      console.log('📊 Total selected:', selectedApiFields.length);
 
       // Create the new API configuration
       const newApiConfig: ApiConfig = {
@@ -115,6 +122,49 @@ const ApiConfigPage: React.FC = () => {
     setSelectedFields(selectedFields);
   };
 
+  // Build auth headers for preview
+  const buildAuthHeadersForPreview = (authConfig: AuthConfig): Record<string, string> => {
+    const headers: Record<string, string> = {};
+    
+    if (!authConfig || authConfig.type === 'none') {
+      return headers;
+    }
+
+    try {
+      switch (authConfig.type) {
+        case 'bearer': {
+          const token = authConfig.credentials?.token || authConfig.credentials?.accessToken;
+          if (token) {
+            // Show masked token in preview
+            const maskedToken = token.substring(0, 10) + '...' + token.substring(token.length - 10);
+            headers['Authorization'] = `Bearer ${maskedToken} (encrypted)`;
+          }
+          break;
+        }
+        case 'basic': {
+          const username = authConfig.credentials?.username || '';
+          const password = authConfig.credentials?.password || '';
+          if (username && password) {
+            headers['Authorization'] = `Basic ********** (encrypted)`;
+          }
+          break;
+        }
+        case 'oauth2': {
+          const token = authConfig.credentials?.token || authConfig.credentials?.accessToken;
+          if (token) {
+            const maskedToken = token.substring(0, 10) + '...' + token.substring(token.length - 10);
+            headers['Authorization'] = `Bearer ${maskedToken} (encrypted)`;
+          }
+          break;
+        }
+      }
+    } catch (error) {
+      console.error('Error building auth headers for preview:', error);
+    }
+
+    return headers;
+  };
+
   // Test API endpoint
   const testApiEndpoint = async () => {
     if (!apiUrl.trim()) {
@@ -139,8 +189,31 @@ const ApiConfigPage: React.FC = () => {
       return;
     }
 
-    // Build request preview
-    setRequestPreview({ method: httpMethod, url: apiUrl, headers: parsedHeaders });
+    // Build auth headers for preview
+    const authHeaders = buildAuthHeadersForPreview(authConfig);
+
+    // Build complete request preview with auth and custom headers
+    const completeHeaders = {
+      'Content-Type': 'application/json',
+      ...authHeaders,
+      ...parsedHeaders,
+    };
+
+    setRequestPreview({ method: httpMethod, url: apiUrl, headers: completeHeaders });
+
+    // Log the config being sent to API testing
+    console.log('🧪 Testing API with configuration:');
+    console.log('  - URL:', apiUrl);
+    console.log('  - Method:', httpMethod);
+    console.log('  - Auth Type:', authConfig.type);
+    console.log('  - Auth Credentials:', authConfig.credentials ? 'Present' : 'Missing');
+    if (authConfig.credentials) {
+      console.log('  - Credentials keys:', Object.keys(authConfig.credentials));
+      if (authConfig.type === 'bearer' && authConfig.credentials.token) {
+        console.log('  - Token length (encrypted):', authConfig.credentials.token.length);
+      }
+    }
+    console.log('  - Custom Headers:', parsedHeaders);
 
     try {
       const result = await testAPIConnection(
@@ -229,16 +302,20 @@ const ApiConfigPage: React.FC = () => {
               size="small"
               label="Headers (JSON)"
               multiline
-              rows={3}
-              placeholder='{"Content-Type": "application/json", "X-Custom-Header": "value"}'
+              rows={4}
+              placeholder={`{
+  "accept": "application/json",
+  "accept-language": "en-US,en;q=0.9",
+  "accept-version": "v1"
+}`}
               value={headers}
               onChange={(e) => setHeaders(e.target.value)}
               sx={{ 
-                '& .MuiInputBase-input': { fontSize: '0.8rem' },
+                '& .MuiInputBase-input': { fontSize: '0.8rem', fontFamily: 'monospace' },
                 '& .MuiInputLabel-root': { fontSize: '0.8rem' },
                 '& .MuiFormHelperText-root': { fontSize: '0.7rem' }
               }}
-              helperText="Enter custom headers in JSON format"
+              helperText="Custom headers in JSON format. Authorization header is added automatically from authentication config."
             />
           </Box>
 
@@ -259,7 +336,14 @@ const ApiConfigPage: React.FC = () => {
                 sx={{ 
                   fontSize: '0.75rem',
                   py: 0.5,
-                  flex: 1
+                  flex: 1,
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #5568d3 0%, #653a8a 100%)',
+                  },
+                  '&:disabled': {
+                    background: 'rgba(0, 0, 0, 0.12)',
+                  },
                 }}
               >
                 {isTestingApi ? 'Testing...' : 'Test API'}
@@ -401,11 +485,11 @@ const ApiConfigPage: React.FC = () => {
           <Card sx={{ mb: 2 }}>
             <CardContent sx={{ p: 1.5 }}>
               <Typography variant="subtitle2" sx={{ fontSize: '0.8rem', fontWeight: 'bold', mb: 1 }}>
-                Selected Fields for Mapping ({Object.values(selectedFields).filter(Boolean).length}/{extractedFields.length})
+                Selected Fields for Mapping ({Object.values(selectedFields).filter(Boolean).length}/{flattenFields(extractedFields).length})
               </Typography>
               {Object.values(selectedFields).filter(Boolean).length > 0 ? (
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                  {extractedFields
+                  {flattenFields(extractedFields)
                     .filter(field => selectedFields[field.path])
                     .map((field, index) => (
                       <Chip
@@ -450,20 +534,26 @@ const ApiConfigPage: React.FC = () => {
           <Button
             type="submit"
             variant="contained"
-            color="primary"
             size="small"
             disabled={state.isLoading || !apiUrl.trim()}
             sx={{ 
               width: { xs: '100%', sm: 'auto' },
               minWidth: { xs: 'auto', sm: '80px' },
               fontSize: '0.75rem',
-              py: 0.5
+              py: 0.5,
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #5568d3 0%, #653a8a 100%)',
+              },
+              '&:disabled': {
+                background: 'rgba(0, 0, 0, 0.12)',
+              },
             }}
           >
             Save Configuration
             {extractedFields.length > 0 && (
               <Chip 
-                label={`${Object.values(selectedFields).filter(Boolean).length}/${extractedFields.length} fields`}
+                label={`${Object.values(selectedFields).filter(Boolean).length}/${flattenFields(extractedFields).length} fields`}
                 size="small"
                 color="secondary"
                 sx={{ 

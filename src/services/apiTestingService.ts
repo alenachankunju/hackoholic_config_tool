@@ -7,6 +7,10 @@
 
 import axios, { type AxiosResponse, type AxiosError } from 'axios';
 import type { ApiConfig, FieldMapping, ApiField } from '../types';
+import CryptoJS from 'crypto-js';
+
+// Encryption key (should match the one in AuthConfig.tsx)
+const ENCRYPTION_KEY = 'hackoholics-auth-key-2024';
 
 export interface ApiTestResult {
   id: string;
@@ -69,39 +73,91 @@ class ApiTestingService {
   };
 
   /**
+   * Decrypt a single credential value
+   */
+  private decryptValue(encryptedValue: string): string {
+    try {
+      if (!encryptedValue) return '';
+      const bytes = CryptoJS.AES.decrypt(encryptedValue, ENCRYPTION_KEY);
+      const decrypted = bytes.toString(CryptoJS.enc.Utf8);
+      return decrypted || encryptedValue; // Return original if decryption fails
+    } catch (error) {
+      console.error('Decryption failed:', error);
+      return encryptedValue; // Return original value if decryption fails
+    }
+  }
+
+  /**
    * Build authentication headers based on ApiConfig.authentication
    */
   private buildAuthHeaders(config: ApiConfig): Record<string, string> {
     const headers: Record<string, string> = {};
     const auth = config.authentication;
-    if (!auth || auth.type === 'none') return headers;
+    
+    console.log('🔐 Building auth headers for type:', auth?.type);
+    
+    if (!auth || auth.type === 'none') {
+      console.log('✅ No authentication required');
+      return headers;
+    }
 
     try {
       switch (auth.type) {
         case 'bearer': {
-          const token = auth.credentials?.token || auth.credentials?.accessToken;
-          if (token) headers['Authorization'] = `Bearer ${token}`;
+          const encryptedToken = auth.credentials?.token || auth.credentials?.accessToken;
+          console.log('🔑 Bearer token encrypted length:', encryptedToken?.length || 0);
+          
+          if (encryptedToken) {
+            const token = this.decryptValue(encryptedToken);
+            console.log('🔓 Bearer token decrypted length:', token?.length || 0);
+            
+            if (token) {
+              headers['Authorization'] = `Bearer ${token}`;
+              console.log('✅ Bearer token added to headers');
+            } else {
+              console.warn('⚠️ Decrypted token is empty');
+            }
+          } else {
+            console.warn('⚠️ No bearer token found in credentials');
+          }
           break;
         }
         case 'basic': {
-          const username = auth.credentials?.username || '';
-          const password = auth.credentials?.password || '';
+          const encryptedUsername = auth.credentials?.username || '';
+          const encryptedPassword = auth.credentials?.password || '';
+          const username = this.decryptValue(encryptedUsername);
+          const password = this.decryptValue(encryptedPassword);
+          console.log('🔓 Basic auth credentials decrypted - username:', username?.length || 0, 'chars');
+          
           const encoded = typeof btoa === 'function'
             ? btoa(`${username}:${password}`)
             : Buffer.from(`${username}:${password}`).toString('base64');
           headers['Authorization'] = `Basic ${encoded}`;
+          console.log('✅ Basic auth added to headers');
           break;
         }
         case 'oauth2': {
-          const token = auth.credentials?.token || auth.credentials?.accessToken;
-          if (token) headers['Authorization'] = `Bearer ${token}`;
+          const encryptedToken = auth.credentials?.token || auth.credentials?.accessToken;
+          console.log('🔑 OAuth2 token encrypted length:', encryptedToken?.length || 0);
+          
+          if (encryptedToken) {
+            const token = this.decryptValue(encryptedToken);
+            console.log('🔓 OAuth2 token decrypted length:', token?.length || 0);
+            
+            if (token) {
+              headers['Authorization'] = `Bearer ${token}`;
+              console.log('✅ OAuth2 token added to headers');
+            }
+          }
           break;
         }
       }
-    } catch (_) {
+    } catch (error) {
+      console.error('❌ Auth header construction error:', error);
       // Swallow auth header construction errors; they'll surface as request failures later
     }
 
+    console.log('📤 Final auth headers:', Object.keys(headers));
     return headers;
   }
 
@@ -295,23 +351,67 @@ class ApiTestingService {
     
     for (let attempt = 0; attempt < testConfig.retries; attempt++) {
       try {
+        const authHeaders = this.buildAuthHeaders(config);
+        
+        // Build proper request headers with defaults
+        const defaultHeaders: Record<string, string> = {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        };
+        
+        const requestHeaders = {
+          ...defaultHeaders,
+          ...authHeaders,
+          ...config.headers,
+          ...testConfig.customHeaders,
+        };
+        
+        console.log('🔧 Request Headers Being Built:');
+        console.log('  - Auth headers from buildAuthHeaders:', authHeaders);
+        console.log('  - Config headers:', config.headers);
+        console.log('  - Final merged headers keys:', Object.keys(requestHeaders));
+        
+        // Show Authorization header (masked for security)
+        if (requestHeaders.Authorization) {
+          const authValue = requestHeaders.Authorization;
+          const maskedAuth = authValue.substring(0, 20) + '...' + authValue.substring(authValue.length - 10);
+          console.log('  - Authorization header (masked):', maskedAuth);
+        } else {
+          console.warn('  ⚠️ WARNING: No Authorization header in final request headers!');
+        }
+        
+        console.log('📤 Making API Request:', {
+          method: config.method,
+          url: config.url,
+          headers: Object.keys(requestHeaders),
+          hasAuthorization: !!requestHeaders.Authorization,
+          attempt: attempt + 1,
+          maxAttempts: testConfig.retries,
+        });
+        
         const response = await axios({
           method: config.method,
           url: config.url,
-          headers: {
-            'Content-Type': 'application/json',
-            ...this.buildAuthHeaders(config),
-            ...config.headers,
-            ...testConfig.customHeaders,
-          },
+          headers: requestHeaders,
           timeout: testConfig.timeout,
           validateStatus: () => true, // Don't throw on HTTP error status
           maxRedirects: testConfig.followRedirects ? 5 : 0,
         });
         
+        console.log('✅ API Response Received:', {
+          status: response.status,
+          statusText: response.statusText,
+          headers: Object.keys(response.headers),
+        });
+        
         return response;
       } catch (error) {
         lastError = error as AxiosError;
+        const err = error as any;
+        console.error(`❌ API Request Failed (Attempt ${attempt + 1}/${testConfig.retries}):`, {
+          message: err?.message || 'Unknown error',
+          code: err?.code || 'UNKNOWN',
+        });
         
         // Don't retry on certain errors
         if (this.isNonRetryableError(error as AxiosError)) {
@@ -359,7 +459,28 @@ class ApiTestingService {
     if (error.response) {
       return `HTTP ${error.response.status}: ${error.response.statusText}`;
     } else if (error.request) {
-      return 'Network error: No response received';
+      // More detailed network error information
+      console.error('🚨 Network Error Details:', {
+        message: error.message,
+        code: error.code,
+        config: {
+          url: error.config?.url,
+          method: error.config?.method,
+          headers: error.config?.headers,
+        },
+        request: error.request,
+      });
+      
+      // Provide more helpful error message
+      if (error.message.includes('CORS')) {
+        return 'Network error: CORS policy blocking the request. The API server must allow requests from your origin.';
+      } else if (error.code === 'ERR_NETWORK') {
+        return 'Network error: Unable to reach the API server. Check if the URL is correct and the server is running.';
+      } else if (error.message.includes('refused')) {
+        return 'Network error: Connection refused. The API server may be down or the port is incorrect.';
+      } else {
+        return `Network error: No response received. ${error.message || 'Check CORS settings or network connection.'}`;
+      }
     } else {
       return `Request error: ${error.message}`;
     }

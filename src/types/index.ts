@@ -153,6 +153,8 @@ export interface AppState {
   testResults: TestResult[];
   isLoading: boolean;
   error: string | null;
+  isAuthenticated: boolean;
+  user: string | null;
 }
 
 // Action types for state management
@@ -165,4 +167,6 @@ export type AppAction =
   | { type: 'CLEAR_TEST_RESULTS' }
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null }
-  | { type: 'RESET_STATE' };
+  | { type: 'RESET_STATE' }
+  | { type: 'LOGIN'; payload: string }
+  | { type: 'LOGOUT' };

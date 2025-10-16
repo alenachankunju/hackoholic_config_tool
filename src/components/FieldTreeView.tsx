@@ -93,24 +93,30 @@ const getFieldTypeColor = (type: string): 'default' | 'primary' | 'secondary' | 
 interface FieldTreeNodeProps {
   field: ApiField;
   level: number;
-  isSelected: boolean;
+  selectedFields: FieldSelectionState; // Changed to pass full state instead of single boolean
   onToggle: (fieldPath: string, isSelected: boolean) => void;
   searchTerm: string;
-  isExpanded: boolean;
+  expandedNodes: Set<string>; // Changed to pass full set instead of single boolean
   onToggleExpand: (fieldPath: string) => void;
 }
 
 const FieldTreeNode: React.FC<FieldTreeNodeProps> = ({
   field,
   level,
-  isSelected,
+  selectedFields,
   onToggle,
   searchTerm,
-  isExpanded,
+  expandedNodes,
   onToggleExpand,
 }) => {
   const hasChildren = field.nested && field.nested.length > 0;
   const indentLevel = level * 20;
+  
+  // Get selection state for this specific field
+  const isSelected = selectedFields[field.path] || false;
+  
+  // Get expansion state for this specific field
+  const isExpanded = expandedNodes.has(field.path);
   
   // Check if field matches search term
   const matchesSearch = searchTerm === '' || 
@@ -124,6 +130,13 @@ const FieldTreeNode: React.FC<FieldTreeNodeProps> = ({
   }
 
   const handleCheckboxChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log(`🔘 Field selection toggled:`, {
+      path: field.path,
+      name: field.name,
+      type: field.type,
+      checked: event.target.checked,
+      hasChildren: hasChildren
+    });
     onToggle(field.path, event.target.checked);
   };
 
@@ -133,6 +146,9 @@ const FieldTreeNode: React.FC<FieldTreeNodeProps> = ({
     }
   };
 
+  // Check if this is an array item (path contains array index like [0], [1])
+  const isArrayItem = /\[\d+\]/.test(field.path);
+  
   return (
     <Box>
       <Box
@@ -143,8 +159,10 @@ const FieldTreeNode: React.FC<FieldTreeNodeProps> = ({
           px: 1,
           ml: `${indentLevel}px`,
           borderRadius: 1,
+          backgroundColor: isArrayItem ? 'rgba(156, 39, 176, 0.04)' : 'transparent', // Light purple tint for array items
+          borderLeft: isArrayItem ? '2px solid rgba(156, 39, 176, 0.3)' : 'none', // Purple left border for array items
           '&:hover': {
-            backgroundColor: 'action.hover',
+            backgroundColor: isArrayItem ? 'rgba(156, 39, 176, 0.08)' : 'action.hover',
           },
           cursor: 'pointer',
           minHeight: 32,
@@ -170,7 +188,15 @@ const FieldTreeNode: React.FC<FieldTreeNodeProps> = ({
           checked={isSelected}
           onChange={handleCheckboxChange}
           onClick={(e) => e.stopPropagation()}
-          sx={{ mr: 1, p: 0.5 }}
+          sx={{ 
+            mr: 1, 
+            p: 0.5,
+            '&:hover': {
+              backgroundColor: 'action.hover',
+            },
+            // Add visual feedback for clickability
+            cursor: 'pointer',
+          }}
         />
 
         {/* Field Type Icon */}
@@ -226,10 +252,10 @@ const FieldTreeNode: React.FC<FieldTreeNodeProps> = ({
                 key={`${nestedField.path}-${index}`}
                 field={nestedField}
                 level={level + 1}
-                isSelected={isSelected} // This should be passed from parent state
+                selectedFields={selectedFields} // Pass full selection state
                 onToggle={onToggle}
                 searchTerm={searchTerm}
-                isExpanded={isExpanded} // This should be managed per node
+                expandedNodes={expandedNodes} // Pass full expanded nodes set
                 onToggleExpand={onToggleExpand}
               />
             ))}
@@ -431,10 +457,10 @@ const FieldTreeView: React.FC<FieldTreeViewProps> = ({
                   key={`${field.path}-${index}`}
                   field={field}
                   level={0}
-                  isSelected={selectedFields[field.path] || false}
+                  selectedFields={selectedFields}
                   onToggle={onFieldToggle}
                   searchTerm={searchTerm}
-                  isExpanded={expandedNodes.has(field.path)}
+                  expandedNodes={expandedNodes}
                   onToggleExpand={handleToggleExpand}
                 />
               ))}

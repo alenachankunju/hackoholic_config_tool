@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Typography, Paper, Chip, LinearProgress, Button, Dialog, DialogTitle, DialogContent, DialogActions, IconButton } from '@mui/material';
-import { Api as ApiIcon, Storage as DatabaseIcon, AccountTree as MappingIcon, CheckCircle as CheckIcon, Error as ErrorIcon, PlayArrow as TestIcon, Close as CloseIcon } from '@mui/icons-material';
+import { Api as ApiIcon, Storage as DatabaseIcon, AccountTree as MappingIcon, CheckCircle as CheckIcon, Error as ErrorIcon, PlayArrow as TestIcon, Close as CloseIcon, Logout as LogoutIcon } from '@mui/icons-material';
 import { useAppContext } from '../contexts/AppContext';
 import ApiConfig from './ApiConfig';
 import DatabaseConfig from './DatabaseConfig';
@@ -8,7 +8,7 @@ import Mapping from './Mapping';
 import Testing from './Testing';
 
 const HomePage: React.FC = () => {
-  const { state } = useAppContext();
+  const { state, logout } = useAppContext();
   const [testingModalOpen, setTestingModalOpen] = React.useState(false);
 
   const getStatusIcon = (config: any) => {
@@ -32,6 +32,10 @@ const HomePage: React.FC = () => {
     return (configured / configs.length) * 100;
   };
 
+  const handleLogout = () => {
+    logout();
+  };
+
   return (
     <Box sx={{ 
       width: '100vw',
@@ -48,7 +52,7 @@ const HomePage: React.FC = () => {
         sx={{ 
           p: 1.5, 
           borderRadius: 0,
-          background: 'linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)',
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
           color: 'white',
           minHeight: '60px'
         }}
@@ -65,23 +69,44 @@ const HomePage: React.FC = () => {
             Hackoholics Config Dashboard
           </Typography>
           
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <LinearProgress 
-              variant="determinate" 
-              value={getOverallProgress()} 
-              sx={{ 
-                width: 120,
-                height: 6, 
-                borderRadius: 3,
-                backgroundColor: 'rgba(255,255,255,0.2)',
-                '& .MuiLinearProgress-bar': {
-                  backgroundColor: 'white'
-                }
-              }} 
-            />
-            <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.8rem' }}>
-              {Math.round(getOverallProgress())}%
-            </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <LinearProgress 
+                variant="determinate" 
+                value={getOverallProgress()} 
+                sx={{ 
+                  width: 120,
+                  height: 6, 
+                  borderRadius: 3,
+                  backgroundColor: 'rgba(255,255,255,0.2)',
+                  '& .MuiLinearProgress-bar': {
+                    backgroundColor: 'white'
+                  }
+                }} 
+              />
+              <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.8rem' }}>
+                {Math.round(getOverallProgress())}%
+              </Typography>
+            </Box>
+            <Button
+              color="inherit"
+              onClick={handleLogout}
+              startIcon={<LogoutIcon />}
+              sx={{
+                color: 'white',
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                '&:hover': {
+                  backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                },
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                px: 2,
+                py: 0.75,
+                fontWeight: 'bold',
+                textTransform: 'none',
+              }}
+            >
+              Logout
+            </Button>
           </Box>
         </Box>
       </Paper>
@@ -204,7 +229,11 @@ const HomePage: React.FC = () => {
               ml: 'auto',
               fontSize: '0.75rem',
               py: 0.5,
-              px: 1.5
+              px: 1.5,
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #5568d3 0%, #653a8a 100%)',
+              },
             }}
           >
             Open Testing

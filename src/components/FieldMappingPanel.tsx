@@ -217,6 +217,15 @@ const FieldMappingPanel: React.FC<FieldMappingPanelProps> = ({
                 startIcon={<LinkIcon />}
                 onClick={handleCreateMapping}
                 disabled={disabled || selectedApiFields.length !== 1 || selectedDbFields.length !== 1}
+                sx={{
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #5568d3 0%, #653a8a 100%)',
+                  },
+                  '&:disabled': {
+                    background: 'rgba(0, 0, 0, 0.12)',
+                  },
+                }}
               >
                 Create Mapping
               </Button>

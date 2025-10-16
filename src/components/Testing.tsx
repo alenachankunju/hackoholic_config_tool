@@ -242,17 +242,25 @@ const TestingPage: React.FC = () => {
 	return (
 		<Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
 			{/* Header controls */}
-			<Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-				<Button
-					variant="contained"
-					color="primary"
-					startIcon={<PlayIcon />}
-					onClick={runTests}
-					disabled={isRunning || state.isLoading}
-					size="small"
-				>
-					{isRunning ? 'Running All...' : 'Run All Tests'}
-				</Button>
+		<Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+			<Button
+				variant="contained"
+				startIcon={<PlayIcon />}
+				onClick={runTests}
+				disabled={isRunning || state.isLoading}
+				size="small"
+				sx={{
+					background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+					'&:hover': {
+						background: 'linear-gradient(135deg, #5568d3 0%, #653a8a 100%)',
+					},
+					'&:disabled': {
+						background: 'rgba(0, 0, 0, 0.12)',
+					},
+				}}
+			>
+				{isRunning ? 'Running All...' : 'Run All Tests'}
+			</Button>
 				<Button
 					variant="outlined"
 					startIcon={<DownloadIcon />}
